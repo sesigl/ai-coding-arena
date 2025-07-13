@@ -10,34 +10,23 @@ import { CompetitionId } from 'domain/competition-event/competition-id';
 import { ParticipantId } from 'domain/competition-event/participant-id';
 import { EventType } from 'domain/competition-event/event-type';
 
-interface EventRow {
-  id: number;
-  timestamp: string | number;
-  competition_id: string;
-  round_id: string;
-  participant_id: string;
-  event_type: string;
-  phase: string;
-  data: string;
-  success: boolean;
-  duration_seconds: string;
-}
-
 export class EventStore {
-  private asEventRow(row: unknown): EventRow {
+  private rowToCompetitionEvent(row: unknown): CompetitionEvent {
     const r = row as Record<string, unknown>;
-    return {
+    return CompetitionEvent.fromRawData({
       id: r.id as number,
-      timestamp: r.timestamp as string | number,
+      timestamp: new Date(r.timestamp as string | number),
       competition_id: r.competition_id as string,
-      round_id: r.round_id as string,
+      round_id: isNaN(Number(r.round_id)) ? (r.round_id as 'NOT_APPLICABLE') : Number(r.round_id),
       participant_id: r.participant_id as string,
       event_type: r.event_type as string,
       phase: r.phase as string,
-      data: r.data as string,
+      data: JSON.parse(r.data as string),
       success: r.success as boolean,
-      duration_seconds: r.duration_seconds as string,
-    };
+      duration_seconds: isNaN(Number(r.duration_seconds))
+        ? (r.duration_seconds as 'NOT_MEASURED')
+        : Number(r.duration_seconds),
+    });
   }
 
   private asCountRow(row: unknown): { count: number } {
@@ -110,25 +99,7 @@ export class EventStore {
       const query = 'SELECT * FROM events ORDER BY timestamp ASC';
       const rows = await this.all(query);
 
-      const events: CompetitionEvent[] = rows.map(row => {
-        const eventRow = this.asEventRow(row);
-        return CompetitionEvent.fromRawData({
-          id: eventRow.id,
-          timestamp: new Date(eventRow.timestamp),
-          competition_id: eventRow.competition_id,
-          round_id: isNaN(Number(eventRow.round_id))
-            ? (eventRow.round_id as 'NOT_APPLICABLE')
-            : Number(eventRow.round_id),
-          participant_id: eventRow.participant_id,
-          event_type: eventRow.event_type,
-          phase: eventRow.phase,
-          data: JSON.parse(eventRow.data),
-          success: eventRow.success,
-          duration_seconds: isNaN(Number(eventRow.duration_seconds))
-            ? (eventRow.duration_seconds as 'NOT_MEASURED')
-            : Number(eventRow.duration_seconds),
-        });
-      });
+      const events: CompetitionEvent[] = rows.map(row => this.rowToCompetitionEvent(row));
 
       return ok(events);
     } catch (error) {
@@ -147,25 +118,7 @@ export class EventStore {
       const query = 'SELECT * FROM events WHERE competition_id = ? ORDER BY timestamp ASC';
       const rows = await this.all(query, [competitionId.getValue()]);
 
-      const events: CompetitionEvent[] = rows.map(row => {
-        const eventRow = this.asEventRow(row);
-        return CompetitionEvent.fromRawData({
-          id: eventRow.id,
-          timestamp: new Date(eventRow.timestamp),
-          competition_id: eventRow.competition_id,
-          round_id: isNaN(Number(eventRow.round_id))
-            ? (eventRow.round_id as 'NOT_APPLICABLE')
-            : Number(eventRow.round_id),
-          participant_id: eventRow.participant_id,
-          event_type: eventRow.event_type,
-          phase: eventRow.phase,
-          data: JSON.parse(eventRow.data),
-          success: eventRow.success,
-          duration_seconds: isNaN(Number(eventRow.duration_seconds))
-            ? (eventRow.duration_seconds as 'NOT_MEASURED')
-            : Number(eventRow.duration_seconds),
-        });
-      });
+      const events: CompetitionEvent[] = rows.map(row => this.rowToCompetitionEvent(row));
 
       return ok(events);
     } catch (error) {
@@ -184,25 +137,7 @@ export class EventStore {
       const query = 'SELECT * FROM events WHERE participant_id = ? ORDER BY timestamp ASC';
       const rows = await this.all(query, [participantId.getValue()]);
 
-      const events: CompetitionEvent[] = rows.map(row => {
-        const eventRow = this.asEventRow(row);
-        return CompetitionEvent.fromRawData({
-          id: eventRow.id,
-          timestamp: new Date(eventRow.timestamp),
-          competition_id: eventRow.competition_id,
-          round_id: isNaN(Number(eventRow.round_id))
-            ? (eventRow.round_id as 'NOT_APPLICABLE')
-            : Number(eventRow.round_id),
-          participant_id: eventRow.participant_id,
-          event_type: eventRow.event_type,
-          phase: eventRow.phase,
-          data: JSON.parse(eventRow.data),
-          success: eventRow.success,
-          duration_seconds: isNaN(Number(eventRow.duration_seconds))
-            ? (eventRow.duration_seconds as 'NOT_MEASURED')
-            : Number(eventRow.duration_seconds),
-        });
-      });
+      const events: CompetitionEvent[] = rows.map(row => this.rowToCompetitionEvent(row));
 
       return ok(events);
     } catch (error) {
@@ -219,25 +154,7 @@ export class EventStore {
       const query = 'SELECT * FROM events WHERE event_type = ? ORDER BY timestamp ASC';
       const rows = await this.all(query, [eventType]);
 
-      const events: CompetitionEvent[] = rows.map(row => {
-        const eventRow = this.asEventRow(row);
-        return CompetitionEvent.fromRawData({
-          id: eventRow.id,
-          timestamp: new Date(eventRow.timestamp),
-          competition_id: eventRow.competition_id,
-          round_id: isNaN(Number(eventRow.round_id))
-            ? (eventRow.round_id as 'NOT_APPLICABLE')
-            : Number(eventRow.round_id),
-          participant_id: eventRow.participant_id,
-          event_type: eventRow.event_type,
-          phase: eventRow.phase,
-          data: JSON.parse(eventRow.data),
-          success: eventRow.success,
-          duration_seconds: isNaN(Number(eventRow.duration_seconds))
-            ? (eventRow.duration_seconds as 'NOT_MEASURED')
-            : Number(eventRow.duration_seconds),
-        });
-      });
+      const events: CompetitionEvent[] = rows.map(row => this.rowToCompetitionEvent(row));
 
       return ok(events);
     } catch (error) {
