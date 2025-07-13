@@ -1,1 +1,2 @@
 refactor: create custom asserts in tests to reduce duplication
+refactor: reduce dupliation e.g. the creation of events in tests, and fokus on readability. we do not need to see all details of an event being created, but only the needed parts relevant for the test case. s

@@ -318,4 +318,61 @@ describe('EventStore', () => {
       }
     });
   });
+
+  describe('getEventCount', () => {
+    beforeEach(async () => {
+      const events = [
+        new CompetitionEvent(
+          new EventId(1),
+          new Date(),
+          new CompetitionId('comp-1'),
+          RoundId.fromNumber(1),
+          ParticipantId.fromString('claude-code'),
+          EventType.BASELINE_CREATION_STARTED,
+          Phase.BASELINE,
+          { message: 'Event 1' },
+          true,
+          Duration.fromSeconds(5)
+        ),
+        new CompetitionEvent(
+          new EventId(2),
+          new Date(),
+          new CompetitionId('comp-1'),
+          RoundId.fromNumber(1),
+          ParticipantId.fromString('gemini-cli'),
+          EventType.BUG_INJECTION_STARTED,
+          Phase.BUG_INJECTION,
+          { message: 'Event 2' },
+          true,
+          Duration.fromSeconds(8)
+        ),
+        new CompetitionEvent(
+          new EventId(3),
+          new Date(),
+          new CompetitionId('comp-2'),
+          RoundId.fromNumber(1),
+          ParticipantId.fromString('claude-code'),
+          EventType.BASELINE_CREATION_STARTED,
+          Phase.BASELINE,
+          { message: 'Event 3' },
+          false,
+          Duration.fromSeconds(12)
+        )
+      ];
+
+      for (const event of events) {
+        await eventStore.insertEvent(event);
+      }
+    });
+
+    it('should count all events', async () => {
+      const result = await eventStore.getEventCount();
+      
+      expect(result.isOk()).toBe(true);
+      
+      if (result.isOk()) {
+        expect(result.value).toBe(3);
+      }
+    });
+  });
 });

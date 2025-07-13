@@ -186,6 +186,22 @@ export class EventStore {
     }
   }
 
+  async getEventCount(): Promise<Result<number, Error>> {
+    if (!this.db) {
+      return err(new Error('Database not initialized'));
+    }
+
+    try {
+      const query = 'SELECT COUNT(*) as count FROM events';
+      const rows = await this.all(query);
+      
+      const count = Number(rows[0]?.count || 0);
+      return ok(count);
+    } catch (error) {
+      return err(error instanceof Error ? error : new Error('Failed to count events'));
+    }
+  }
+
   async close(): Promise<void> {
     if (this.db) {
       this.db.close();
