@@ -1,7 +1,7 @@
 // ABOUTME: Main entry point for ai-coding-arena
 // Exports core functionality for external use
 
-export { EventStore } from 'infrastructure/event-store';
+export { EventStore } from 'infrastructure/event-store/event-store';
 export { CompetitionEvent } from 'domain/competition-event/competition-event';
 export { EventId } from 'domain/competition-event/event-id';
 export { CompetitionId } from 'domain/competition-event/competition-id';

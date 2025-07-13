@@ -31,6 +31,7 @@ When creating a new project structure, pick fun, unhinged names for components/m
 - **NEVER** reimplement features from scratch without explicit permission
 - **NEVER** name things as 'improved', 'new', 'enhanced' - use evergreen naming
 - Preserve existing comments unless provably false - they're documentation
+- **ALWAYS use absolute imports** - never use relative imports like `../utils/foo`. Use `src/utils/foo` instead
 
 ---
 

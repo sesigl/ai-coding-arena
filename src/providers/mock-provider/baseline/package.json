@@ -1,0 +1,16 @@
+{
+  "name": "ai-coding-arena-baseline",
+  "version": "1.0.0",
+  "description": "Baseline project for AI coding competition",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsc",
+    "lint": "eslint . --ext .ts"
+  },
+  "devDependencies": {
+    "vitest": "^1.0.0",
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

@@ -9,8 +9,8 @@ import { EventType } from 'domain/competition-event/event-type';
 import { Phase } from 'domain/competition-event/phase';
 import { unlink, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
-import { TestEventFactory } from '../test-utils/test-event-factory';
-import { TestAssertions } from '../test-utils/test-assertions';
+import { TestEventFactory } from '../../test-utils/test-event-factory';
+import { TestAssertions } from '../../test-utils/test-assertions';
 
 
 describe('EventStore', () => {
