@@ -14,7 +14,7 @@ export async function createWorkspace(name: string): Promise<string> {
 export async function cleanupWorkspace(dir: string): Promise<void> {
   try {
     await rm(dir, { recursive: true, force: true });
-  } catch (_error) {
+  } catch {
     // Ignore cleanup errors - workspace might already be gone
   }
 }

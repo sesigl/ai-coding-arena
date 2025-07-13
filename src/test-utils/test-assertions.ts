@@ -9,7 +9,8 @@ import { EventType } from 'domain/competition-event/event-type';
 export const TestAssertions = {
   expectResultOk<T>(result: Result<T, Error>): void {
     if (result.isErr()) {
-      console.error('Unexpected error:', result.error);
+      // Error details will be shown by the test framework
+      throw new Error(`Expected success but got error: ${result.error.message}`);
     }
     expect(result.isOk()).toBe(true);
   },

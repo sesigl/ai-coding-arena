@@ -1,13 +1,12 @@
-# Run TypeScript compilation check
-echo "🔍 Running TypeScript compilation check..."
-npm run typecheck
+# Run comprehensive checks before commit
+echo "🚀 Running comprehensive pre-commit checks..."
 
-# Run lint-staged for staged files
+# Run lint-staged for staged files first (auto-fix)
 echo "🎨 Running linting and formatting on staged files..."
 npx lint-staged
 
-# Run all tests to ensure nothing is broken
-echo "🧪 Running all tests..."
-npm test
+# Run all comprehensive checks
+echo "🔍 Running all quality checks..."
+npm run check:all
 
 echo "✅ All pre-commit checks passed!"
