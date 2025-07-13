@@ -112,7 +112,7 @@ Each prompt below builds on the previous ones and should be executed in sequence
 
 ---
 
-## Prompt 1: Project Setup & Event Storage Core
+## Prompt 1: Project Setup & Event Storage Core ✅ COMPLETED
 
 ```
 You are implementing the foundation of an LLM coding competition system. Set up a new TypeScript project with strict configuration and implement the core event storage system using DuckDB.

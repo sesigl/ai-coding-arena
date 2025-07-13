@@ -1,0 +1,1 @@
+Think deeply and check this session history. Extract typescript coding best practices from the context and add them to @.claude/docs/typescript-best-practices.md. Once done review this file .claude/docs/typescript-best-practices.md and make sure it is complete, does not contian duplicates and is concise and clear. 
