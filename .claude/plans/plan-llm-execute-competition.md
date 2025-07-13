@@ -120,7 +120,7 @@ You are implementing the foundation of an LLM coding competition system. Set up 
 Requirements:
 1. Initialize a TypeScript project with strict mode, proper tsconfig.json
 2. Add necessary dependencies: duckdb, @types/node, vitest for testing
-3. Create the event schema in DuckDB as specified in spec.md
+3. Create the event schema in DuckDB as specified in .claude/plans/spec-llm-execute-competition.md
 4. Implement basic event types and interfaces
 5. Create a simple EventStore class that can insert and query events
 6. Add unit tests for all functionality
@@ -173,7 +173,7 @@ Requirements:
 3. Implement database initialization and migration
 4. Add comprehensive error handling with custom error types
 5. Create query builder utilities for common patterns
-6. Add performance indexes as specified in spec.md
+6. Add performance indexes as specified in @.claude/plans/spec-llm-execute-competition.md
 
 Key methods to implement:
 - `getEventsByCompetition(competitionId: string): Promise<CompetitionEvent[]>`
@@ -201,7 +201,7 @@ Building on the EventStore implementation, create the core domain models and con
 Context: You have a working EventStore with comprehensive querying. Now add the business domain layer.
 
 Requirements:
-1. Create domain types based on spec.md:
+1. Create domain types based on @.claude/plans/spec-llm-execute-competition.md:
    - Competition (id, participants, rounds, config, status)
    - Round (id, number, phase, participants, results)  
    - Participant (id, name, provider type)
@@ -253,7 +253,7 @@ Building on the domain models, implement the LLM provider abstraction layer that
 Context: You have EventStore, domain models, and configuration. Now create the abstraction for LLM interactions.
 
 Requirements:
-1. Implement the LLMProvider interface as specified in spec.md
+1. Implement the LLMProvider interface as specified in @.claude/plans/spec-llm-execute-competition.md
 2. Create result types for all provider operations (BaselineResult, BugResult, FixResult)
 3. Implement a provider registry and factory system
 4. Create a mock provider for testing
@@ -737,7 +737,7 @@ Building on the event processing engine, implement the results generation system
 Context: You have event processing and statistics calculation. Now create the final output formatting.
 
 Requirements:
-1. Implement JSON results formatting as specified in spec.md
+1. Implement JSON results formatting as specified in @.claude/plans/spec-llm-execute-competition.md
 2. Create leaderboard calculation and ranking
 3. Add individual and competition statistics formatting
 4. Implement export functionality with proper error handling
@@ -766,14 +766,14 @@ Key functionality:
 - `exportResults(results: CompetitionResults, format: OutputFormat): Promise<string>`
 - `validateResults(results: CompetitionResults): Promise<ValidationResult>`
 
-Output format (from spec.md):
+Output format (from @.claude/plans/spec-llm-execute-competition.md):
 - Competition summary with timing and participants
 - Leaderboard with scores and rankings
 - Individual statistics with success rates and timings
 - Round-by-round details with outcomes
 
 Focus on:
-- Exact format compliance with spec.md requirements
+- Exact format compliance with @.claude/plans/spec-llm-execute-competition.md requirements
 - Accurate ranking and tie-breaking logic
 - Comprehensive data validation
 - Clean JSON structure with proper typing
