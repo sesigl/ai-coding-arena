@@ -83,4 +83,51 @@ describe('SimpleCompetitionRunner', () => {
       }
     });
   });
+
+  describe('when running two-phase workflow', () => {
+    it('should run baseline creation followed by bug injection', async () => {
+      const result = await runner.runTwoPhase(mockProvider);
+
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const competitionResult = result.value;
+        expect(competitionResult.success).toBe(true);
+        expect(competitionResult.participantId).toBe('mock-provider');
+        expect(competitionResult.message).toContain('Two-phase workflow completed');
+      }
+    });
+
+    it('should log events for both phases', async () => {
+      await runner.runTwoPhase(mockProvider);
+
+      const eventsResult = await eventStore.getEventsByCompetition(competitionId);
+      expect(eventsResult.isOk()).toBe(true);
+
+      if (eventsResult.isOk()) {
+        const events = eventsResult.value;
+        expect(events.length).toBeGreaterThanOrEqual(4); // Start/end for both phases
+
+        // Check for baseline events
+        const baselineStartEvent = events.find(
+          e => e.getEventType() === 'baseline_creation_started'
+        );
+        expect(baselineStartEvent).toBeDefined();
+
+        const baselineCompletedEvent = events.find(e => e.getEventType() === 'baseline_completed');
+        expect(baselineCompletedEvent).toBeDefined();
+
+        // Check for bug injection events
+        const bugInjectionStartEvent = events.find(
+          e => e.getEventType() === 'bug_injection_started'
+        );
+        expect(bugInjectionStartEvent).toBeDefined();
+
+        const bugInjectionCompletedEvent = events.find(
+          e => e.getEventType() === 'bug_injection_completed'
+        );
+        expect(bugInjectionCompletedEvent).toBeDefined();
+      }
+    });
+  });
 });

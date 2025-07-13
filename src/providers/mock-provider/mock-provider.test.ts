@@ -72,6 +72,54 @@ describe('MockProvider', () => {
       expect(existsSync(join(workspaceDir, 'vitest.config.ts'))).toBe(true);
     });
   });
+
+  describe('injectBug', () => {
+    let baselineDir: string;
+
+    beforeEach(async () => {
+      // Create baseline first
+      baselineDir = await createWorkspace('baseline-test');
+      await mockProvider.createBaseline(baselineDir);
+    });
+
+    afterEach(async () => {
+      await cleanupWorkspace(baselineDir);
+    });
+
+    it('should inject bug and break tests', async () => {
+      const buggyDir = await createWorkspace('buggy-test');
+
+      const result = await mockProvider.injectBug(baselineDir, buggyDir);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('bug injected');
+
+      // Verify files were copied and modified
+      const calculatorFile = join(buggyDir, 'src', 'calculator.ts');
+      expect(existsSync(calculatorFile)).toBe(true);
+
+      const content = await readFile(calculatorFile, 'utf-8');
+      expect(content).toContain('Calculator');
+      // Should contain the bug (return wrong result)
+      expect(content).toContain('return a - b'); // Bug: subtraction instead of addition
+
+      await cleanupWorkspace(buggyDir);
+    });
+
+    it('should preserve project structure when injecting bug', async () => {
+      const buggyDir = await createWorkspace('structure-test');
+
+      await mockProvider.injectBug(baselineDir, buggyDir);
+
+      // Check all project files exist
+      expect(existsSync(join(buggyDir, 'package.json'))).toBe(true);
+      expect(existsSync(join(buggyDir, 'tsconfig.json'))).toBe(true);
+      expect(existsSync(join(buggyDir, 'vitest.config.ts'))).toBe(true);
+      expect(existsSync(join(buggyDir, 'calculator.test.ts'))).toBe(true);
+
+      await cleanupWorkspace(buggyDir);
+    });
+  });
 });
 
 describe('workspace utilities', () => {

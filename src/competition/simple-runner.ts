@@ -96,6 +96,107 @@ export class SimpleCompetitionRunner {
     }
   }
 
+  async runTwoPhase(provider: LLMProvider): Promise<Result<CompetitionResult, Error>> {
+    const participantId = ParticipantId.fromString(provider.name);
+    let baselineDir: string | undefined;
+    let buggyDir: string | undefined;
+
+    try {
+      // Phase 1: Create baseline
+      baselineDir = await createWorkspace(
+        `baseline-${this.competitionId.getValue()}-${provider.name}`
+      );
+
+      await this.logEvent(
+        EventType.BASELINE_CREATION_STARTED,
+        Phase.BASELINE,
+        participantId,
+        { provider: provider.name, baselineDir },
+        true
+      );
+
+      const baselineStartTime = Date.now();
+      const baselineResult = await provider.createBaseline(baselineDir);
+      const baselineDuration = Duration.fromSeconds(
+        Math.floor((Date.now() - baselineStartTime) / 1000)
+      );
+
+      await this.logEvent(
+        EventType.BASELINE_COMPLETED,
+        Phase.BASELINE,
+        participantId,
+        { provider: provider.name, result: baselineResult },
+        baselineResult.success,
+        baselineDuration
+      );
+
+      if (!baselineResult.success) {
+        return ok({
+          success: false,
+          message: `Baseline creation failed: ${baselineResult.message}`,
+          participantId: provider.name,
+        });
+      }
+
+      // Phase 2: Bug injection
+      buggyDir = await createWorkspace(`buggy-${this.competitionId.getValue()}-${provider.name}`);
+
+      await this.logEvent(
+        EventType.BUG_INJECTION_STARTED,
+        Phase.BUG_INJECTION,
+        participantId,
+        { provider: provider.name, baselineDir, buggyDir },
+        true
+      );
+
+      const bugInjectionStartTime = Date.now();
+      const bugInjectionResult = await provider.injectBug(baselineDir, buggyDir);
+      const bugInjectionDuration = Duration.fromSeconds(
+        Math.floor((Date.now() - bugInjectionStartTime) / 1000)
+      );
+
+      await this.logEvent(
+        EventType.BUG_INJECTION_COMPLETED,
+        Phase.BUG_INJECTION,
+        participantId,
+        { provider: provider.name, result: bugInjectionResult },
+        bugInjectionResult.success,
+        bugInjectionDuration
+      );
+
+      const competitionResult: CompetitionResult = {
+        success: bugInjectionResult.success,
+        message: `Two-phase workflow completed: ${baselineResult.message}, ${bugInjectionResult.message}`,
+        participantId: provider.name,
+        workspaceDir: buggyDir,
+      };
+
+      return ok(competitionResult);
+    } catch (error) {
+      // Log failure
+      await this.logEvent(
+        EventType.BUG_INJECTION_COMPLETED,
+        Phase.BUG_INJECTION,
+        participantId,
+        {
+          provider: provider.name,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        false
+      );
+
+      return err(error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      // Clean up workspaces
+      if (baselineDir) {
+        await cleanupWorkspace(baselineDir);
+      }
+      if (buggyDir) {
+        await cleanupWorkspace(buggyDir);
+      }
+    }
+  }
+
   private async logEvent(
     eventType: EventType,
     phase: Phase,
