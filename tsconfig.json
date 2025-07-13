@@ -8,6 +8,12 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": "./src",
+    "paths": {
+      "domain/*": ["domain/*"],
+      "infrastructure/*": ["infrastructure/*"],
+      "application/*": ["application/*"],
+      "presentation/*": ["presentation/*"]
+    },
     "removeComments": true,
     "strict": true,
     "noImplicitReturns": true,
