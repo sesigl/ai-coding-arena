@@ -72,22 +72,8 @@ describe('EventStore', () => {
   describe('getEvents', () => {
     beforeEach(async () => {
       const events = [
-        TestEventFactory.createBasicEvent({
-          id: 1,
-          competitionId: 'comp-1',
-          roundId: 'NOT_APPLICABLE',
-          participantId: 'SYSTEM',
-          eventType: EventType.COMPETITION_STARTED,
-          durationSeconds: 'NOT_MEASURED'
-        }),
-        TestEventFactory.createBasicEvent({
-          id: 2,
-          competitionId: 'comp-2',
-          roundId: 1,
-          participantId: 'SYSTEM',
-          eventType: EventType.ROUND_STARTED,
-          durationSeconds: 'NOT_MEASURED'
-        })
+        TestEventFactory.createBasicEvent({ id: 1, competitionId: 'comp-1' }),
+        TestEventFactory.createBasicEvent({ id: 2, competitionId: 'comp-2' })
       ];
 
       for (const event of events) {
@@ -109,31 +95,9 @@ describe('EventStore', () => {
   describe('getEventsByCompetition', () => {
     beforeEach(async () => {
       const events = [
-        TestEventFactory.createBasicEvent({
-          id: 1,
-          competitionId: 'comp-1',
-          roundId: 'NOT_APPLICABLE',
-          participantId: 'SYSTEM',
-          eventType: EventType.COMPETITION_STARTED,
-          durationSeconds: 'NOT_MEASURED'
-        }),
-        TestEventFactory.createBasicEvent({
-          id: 2,
-          competitionId: 'comp-1',
-          roundId: 1,
-          participantId: 'claude-code',
-          eventType: EventType.ROUND_STARTED,
-          phase: Phase.BASELINE,
-          durationSeconds: 10
-        }),
-        TestEventFactory.createBasicEvent({
-          id: 3,
-          competitionId: 'comp-2',
-          roundId: 1,
-          participantId: 'SYSTEM',
-          eventType: EventType.COMPETITION_STARTED,
-          durationSeconds: 'NOT_MEASURED'
-        })
+        TestEventFactory.createBasicEvent({ id: 1, competitionId: 'comp-1' }),
+        TestEventFactory.createBasicEvent({ id: 2, competitionId: 'comp-1' }),
+        TestEventFactory.createBasicEvent({ id: 3, competitionId: 'comp-2' })
       ];
 
       for (const event of events) {
@@ -153,34 +117,9 @@ describe('EventStore', () => {
   describe('getEventsByParticipant', () => {
     beforeEach(async () => {
       const events = [
-        TestEventFactory.createBasicEvent({
-          id: 1,
-          competitionId: 'comp-1',
-          roundId: 1,
-          participantId: 'claude-code',
-          eventType: EventType.BASELINE_CREATION_STARTED,
-          phase: Phase.BASELINE,
-          durationSeconds: 5
-        }),
-        TestEventFactory.createBasicEvent({
-          id: 2,
-          competitionId: 'comp-1',
-          roundId: 1,
-          participantId: 'gemini-cli',
-          eventType: EventType.BUG_INJECTION_STARTED,
-          phase: Phase.BUG_INJECTION,
-          durationSeconds: 8
-        }),
-        TestEventFactory.createBasicEvent({
-          id: 3,
-          competitionId: 'comp-1',
-          roundId: 1,
-          participantId: 'claude-code',
-          eventType: EventType.FIX_ATTEMPT_STARTED,
-          phase: Phase.FIX_ATTEMPT,
-          success: false,
-          durationSeconds: 15
-        })
+        TestEventFactory.createBasicEvent({ id: 1, participantId: 'claude-code' }),
+        TestEventFactory.createBasicEvent({ id: 2, participantId: 'gemini-cli' }),
+        TestEventFactory.createBasicEvent({ id: 3, participantId: 'claude-code' })
       ];
 
       for (const event of events) {
@@ -200,34 +139,9 @@ describe('EventStore', () => {
   describe('getEventsByType', () => {
     beforeEach(async () => {
       const events = [
-        TestEventFactory.createBasicEvent({
-          id: 1,
-          competitionId: 'comp-1',
-          roundId: 1,
-          participantId: 'claude-code',
-          eventType: EventType.BASELINE_CREATION_STARTED,
-          phase: Phase.BASELINE,
-          durationSeconds: 5
-        }),
-        TestEventFactory.createBasicEvent({
-          id: 2,
-          competitionId: 'comp-1',
-          roundId: 1,
-          participantId: 'gemini-cli',
-          eventType: EventType.BASELINE_CREATION_STARTED,
-          phase: Phase.BASELINE,
-          durationSeconds: 8
-        }),
-        TestEventFactory.createBasicEvent({
-          id: 3,
-          competitionId: 'comp-1',
-          roundId: 1,
-          participantId: 'claude-code',
-          eventType: EventType.BUG_INJECTION_STARTED,
-          phase: Phase.BUG_INJECTION,
-          success: false,
-          durationSeconds: 12
-        })
+        TestEventFactory.createBasicEvent({ id: 1, eventType: EventType.BASELINE_CREATION_STARTED }),
+        TestEventFactory.createBasicEvent({ id: 2, eventType: EventType.BASELINE_CREATION_STARTED }),
+        TestEventFactory.createBasicEvent({ id: 3, eventType: EventType.BUG_INJECTION_STARTED })
       ];
 
       for (const event of events) {
@@ -245,35 +159,11 @@ describe('EventStore', () => {
 
   describe('getEventCount', () => {
     beforeEach(async () => {
+      // For count test, no specific field values matter - just need 3 events
       const events = [
-        TestEventFactory.createBasicEvent({
-          id: 1,
-          competitionId: 'comp-1',
-          roundId: 1,
-          participantId: 'claude-code',
-          eventType: EventType.BASELINE_CREATION_STARTED,
-          phase: Phase.BASELINE,
-          durationSeconds: 5
-        }),
-        TestEventFactory.createBasicEvent({
-          id: 2,
-          competitionId: 'comp-1',
-          roundId: 1,
-          participantId: 'gemini-cli',
-          eventType: EventType.BUG_INJECTION_STARTED,
-          phase: Phase.BUG_INJECTION,
-          durationSeconds: 8
-        }),
-        TestEventFactory.createBasicEvent({
-          id: 3,
-          competitionId: 'comp-2',
-          roundId: 1,
-          participantId: 'claude-code',
-          eventType: EventType.BASELINE_CREATION_STARTED,
-          phase: Phase.BASELINE,
-          success: false,
-          durationSeconds: 12
-        })
+        TestEventFactory.createBasicEvent({ id: 1 }),
+        TestEventFactory.createBasicEvent({ id: 2 }),
+        TestEventFactory.createBasicEvent({ id: 3 })
       ];
 
       for (const event of events) {
