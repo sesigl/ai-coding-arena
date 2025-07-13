@@ -21,10 +21,10 @@ export class EventStore {
   async initialize(): Promise<Result<void, Error>> {
     try {
       this.db = new duckdb.Database(this.dbPath);
-      
+
       const schemaPath = join(__dirname, 'schema.sql');
       const schema = await readFile(schemaPath, 'utf-8');
-      
+
       await this.exec(schema);
       return ok(undefined);
     } catch (error) {
@@ -56,7 +56,9 @@ export class EventStore {
         rawData.phase,
         JSON.stringify(rawData.data),
         rawData.success,
-        typeof rawData.duration_seconds === 'number' ? rawData.duration_seconds.toString() : rawData.duration_seconds
+        typeof rawData.duration_seconds === 'number'
+          ? rawData.duration_seconds.toString()
+          : rawData.duration_seconds,
       ];
 
       await this.run(query, params);
@@ -74,19 +76,23 @@ export class EventStore {
     try {
       const query = 'SELECT * FROM events ORDER BY timestamp ASC';
       const rows = await this.all(query);
-      
-      const events: CompetitionEvent[] = rows.map(row => 
+
+      const events: CompetitionEvent[] = rows.map(row =>
         CompetitionEvent.fromRawData({
           id: row.id,
           timestamp: new Date(row.timestamp),
           competition_id: row.competition_id,
-          round_id: isNaN(Number(row.round_id)) ? row.round_id as 'NOT_APPLICABLE' : Number(row.round_id),
+          round_id: isNaN(Number(row.round_id))
+            ? (row.round_id as 'NOT_APPLICABLE')
+            : Number(row.round_id),
           participant_id: row.participant_id,
           event_type: row.event_type,
           phase: row.phase,
           data: JSON.parse(row.data),
           success: row.success,
-          duration_seconds: isNaN(Number(row.duration_seconds)) ? row.duration_seconds as 'NOT_MEASURED' : Number(row.duration_seconds)
+          duration_seconds: isNaN(Number(row.duration_seconds))
+            ? (row.duration_seconds as 'NOT_MEASURED')
+            : Number(row.duration_seconds),
         })
       );
 
@@ -96,7 +102,9 @@ export class EventStore {
     }
   }
 
-  async getEventsByCompetition(competitionId: CompetitionId): Promise<Result<CompetitionEvent[], Error>> {
+  async getEventsByCompetition(
+    competitionId: CompetitionId
+  ): Promise<Result<CompetitionEvent[], Error>> {
     if (!this.db) {
       return err(new Error('Database not initialized'));
     }
@@ -104,19 +112,23 @@ export class EventStore {
     try {
       const query = 'SELECT * FROM events WHERE competition_id = ? ORDER BY timestamp ASC';
       const rows = await this.all(query, [competitionId.getValue()]);
-      
-      const events: CompetitionEvent[] = rows.map(row => 
+
+      const events: CompetitionEvent[] = rows.map(row =>
         CompetitionEvent.fromRawData({
           id: row.id,
           timestamp: new Date(row.timestamp),
           competition_id: row.competition_id,
-          round_id: isNaN(Number(row.round_id)) ? row.round_id as 'NOT_APPLICABLE' : Number(row.round_id),
+          round_id: isNaN(Number(row.round_id))
+            ? (row.round_id as 'NOT_APPLICABLE')
+            : Number(row.round_id),
           participant_id: row.participant_id,
           event_type: row.event_type,
           phase: row.phase,
           data: JSON.parse(row.data),
           success: row.success,
-          duration_seconds: isNaN(Number(row.duration_seconds)) ? row.duration_seconds as 'NOT_MEASURED' : Number(row.duration_seconds)
+          duration_seconds: isNaN(Number(row.duration_seconds))
+            ? (row.duration_seconds as 'NOT_MEASURED')
+            : Number(row.duration_seconds),
         })
       );
 
@@ -126,7 +138,9 @@ export class EventStore {
     }
   }
 
-  async getEventsByParticipant(participantId: ParticipantId): Promise<Result<CompetitionEvent[], Error>> {
+  async getEventsByParticipant(
+    participantId: ParticipantId
+  ): Promise<Result<CompetitionEvent[], Error>> {
     if (!this.db) {
       return err(new Error('Database not initialized'));
     }
@@ -134,19 +148,23 @@ export class EventStore {
     try {
       const query = 'SELECT * FROM events WHERE participant_id = ? ORDER BY timestamp ASC';
       const rows = await this.all(query, [participantId.getValue()]);
-      
-      const events: CompetitionEvent[] = rows.map(row => 
+
+      const events: CompetitionEvent[] = rows.map(row =>
         CompetitionEvent.fromRawData({
           id: row.id,
           timestamp: new Date(row.timestamp),
           competition_id: row.competition_id,
-          round_id: isNaN(Number(row.round_id)) ? row.round_id as 'NOT_APPLICABLE' : Number(row.round_id),
+          round_id: isNaN(Number(row.round_id))
+            ? (row.round_id as 'NOT_APPLICABLE')
+            : Number(row.round_id),
           participant_id: row.participant_id,
           event_type: row.event_type,
           phase: row.phase,
           data: JSON.parse(row.data),
           success: row.success,
-          duration_seconds: isNaN(Number(row.duration_seconds)) ? row.duration_seconds as 'NOT_MEASURED' : Number(row.duration_seconds)
+          duration_seconds: isNaN(Number(row.duration_seconds))
+            ? (row.duration_seconds as 'NOT_MEASURED')
+            : Number(row.duration_seconds),
         })
       );
 
@@ -164,19 +182,23 @@ export class EventStore {
     try {
       const query = 'SELECT * FROM events WHERE event_type = ? ORDER BY timestamp ASC';
       const rows = await this.all(query, [eventType]);
-      
-      const events: CompetitionEvent[] = rows.map(row => 
+
+      const events: CompetitionEvent[] = rows.map(row =>
         CompetitionEvent.fromRawData({
           id: row.id,
           timestamp: new Date(row.timestamp),
           competition_id: row.competition_id,
-          round_id: isNaN(Number(row.round_id)) ? row.round_id as 'NOT_APPLICABLE' : Number(row.round_id),
+          round_id: isNaN(Number(row.round_id))
+            ? (row.round_id as 'NOT_APPLICABLE')
+            : Number(row.round_id),
           participant_id: row.participant_id,
           event_type: row.event_type,
           phase: row.phase,
           data: JSON.parse(row.data),
           success: row.success,
-          duration_seconds: isNaN(Number(row.duration_seconds)) ? row.duration_seconds as 'NOT_MEASURED' : Number(row.duration_seconds)
+          duration_seconds: isNaN(Number(row.duration_seconds))
+            ? (row.duration_seconds as 'NOT_MEASURED')
+            : Number(row.duration_seconds),
         })
       );
 
@@ -194,7 +216,7 @@ export class EventStore {
     try {
       const query = 'SELECT COUNT(*) as count FROM events';
       const rows = await this.all(query);
-      
+
       const count = Number(rows[0]?.count || 0);
       return ok(count);
     } catch (error) {
@@ -215,8 +237,8 @@ export class EventStore {
         reject(new Error('Database not initialized'));
         return;
       }
-      
-      this.db.exec(query, (err) => {
+
+      this.db.exec(query, err => {
         if (err) reject(err);
         else resolve();
       });
@@ -229,8 +251,8 @@ export class EventStore {
         reject(new Error('Database not initialized'));
         return;
       }
-      
-      this.db.run(query, ...params, (err) => {
+
+      this.db.run(query, ...params, err => {
         if (err) reject(err);
         else resolve();
       });
@@ -243,7 +265,7 @@ export class EventStore {
         reject(new Error('Database not initialized'));
         return;
       }
-      
+
       if (params.length > 0) {
         this.db.all(query, ...params, (err, rows) => {
           if (err) reject(err);

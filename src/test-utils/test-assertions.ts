@@ -15,7 +15,7 @@ export const TestAssertions = {
   },
 
   expectEventArrayLength<T extends CompetitionEvent[]>(
-    result: Result<T, Error>, 
+    result: Result<T, Error>,
     expectedLength: number
   ): void {
     this.expectResultOk(result);
@@ -58,5 +58,5 @@ export const TestAssertions = {
         expect(event.getEventType()).toBe(expectedEventType);
       });
     }
-  }
+  },
 };

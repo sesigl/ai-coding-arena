@@ -3,5 +3,5 @@
 
 export interface LLMProvider {
   readonly name: string;
-  createBaseline(workspaceDir: string): Promise<{success: boolean, message: string}>;
+  createBaseline(workspaceDir: string): Promise<{ success: boolean; message: string }>;
 }

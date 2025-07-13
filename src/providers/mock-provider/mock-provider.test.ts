@@ -34,40 +34,40 @@ describe('MockProvider', () => {
   describe('createBaseline', () => {
     it('should return success true with message', async () => {
       const result = await mockProvider.createBaseline(workspaceDir);
-      
+
       expect(result.success).toBe(true);
       expect(result.message).toContain('baseline created');
     });
 
     it('should create calculator program file', async () => {
       await mockProvider.createBaseline(workspaceDir);
-      
+
       const programFile = join(workspaceDir, 'src', 'calculator.ts');
       expect(existsSync(programFile)).toBe(true);
-      
+
       const content = await readFile(programFile, 'utf-8');
       expect(content).toContain('Calculator');
     });
 
     it('should create test file', async () => {
       await mockProvider.createBaseline(workspaceDir);
-      
+
       const testFile = join(workspaceDir, 'calculator.test.ts');
       expect(existsSync(testFile)).toBe(true);
-      
+
       const content = await readFile(testFile, 'utf-8');
       expect(content).toContain('Calculator');
     });
 
     it('should create complete executable project structure', async () => {
       await mockProvider.createBaseline(workspaceDir);
-      
+
       // Check package.json exists
       expect(existsSync(join(workspaceDir, 'package.json'))).toBe(true);
-      
+
       // Check tsconfig.json exists
       expect(existsSync(join(workspaceDir, 'tsconfig.json'))).toBe(true);
-      
+
       // Check vitest.config.ts exists
       expect(existsSync(join(workspaceDir, 'vitest.config.ts'))).toBe(true);
     });
@@ -86,7 +86,7 @@ describe('workspace utilities', () => {
   describe('createWorkspace', () => {
     it('should create unique workspace directory', async () => {
       workspaceDir = await createWorkspace('test');
-      
+
       expect(existsSync(workspaceDir)).toBe(true);
       expect(workspaceDir).toContain('ai-coding-arena-test');
     });
@@ -94,11 +94,11 @@ describe('workspace utilities', () => {
     it('should create different directories for different names', async () => {
       const workspace1 = await createWorkspace('test1');
       const workspace2 = await createWorkspace('test2');
-      
+
       expect(workspace1).not.toBe(workspace2);
       expect(existsSync(workspace1)).toBe(true);
       expect(existsSync(workspace2)).toBe(true);
-      
+
       await cleanupWorkspace(workspace1);
       await cleanupWorkspace(workspace2);
     });
@@ -108,10 +108,10 @@ describe('workspace utilities', () => {
     it('should remove workspace directory', async () => {
       workspaceDir = await createWorkspace('cleanup-test');
       expect(existsSync(workspaceDir)).toBe(true);
-      
+
       await cleanupWorkspace(workspaceDir);
       expect(existsSync(workspaceDir)).toBe(false);
-      
+
       workspaceDir = ''; // Prevent double cleanup
     });
 

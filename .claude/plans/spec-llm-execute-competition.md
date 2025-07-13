@@ -7,12 +7,14 @@ A core competition system that orchestrates coding competitions between Large La
 ## Architecture
 
 ### Event-Sourced Design
+
 - All interactions stored as events in DuckDB
 - No duplicate data storage - only raw event data
 - Statistics computed on-demand from events
 - Flexible for future projections and analysis
 
 ### Directory Structure
+
 ```
 competitions/
 └── competition-{timestamp}/
@@ -31,18 +33,24 @@ competitions/
 ## LLM Provider Abstraction
 
 ### Interface Definition
+
 ```typescript
 interface LLMProvider {
   readonly id: string;
   readonly name: string;
-  
-  createBaseline(prompt: string, workspaceDir: string, timeoutSeconds: number): Promise<BaselineResult>;
+
+  createBaseline(
+    prompt: string,
+    workspaceDir: string,
+    timeoutSeconds: number
+  ): Promise<BaselineResult>;
   injectBug(baselineDir: string, workspaceDir: string, timeoutSeconds: number): Promise<BugResult>;
   fixCode(buggyCodeDir: string, workspaceDir: string, timeoutSeconds: number): Promise<FixResult>;
 }
 ```
 
 ### Implementation Strategy
+
 - Each LLM (Claude Code, Gemini CLI) implements the interface
 - Real CLI commands executed within isolated directories
 - All CLI input/output captured as events
@@ -51,10 +59,12 @@ interface LLMProvider {
 ## Competition Configuration
 
 ### Manual Execution
+
 - Triggered via CLI command (no scheduling initially)
 - Configuration specified via JSON or CLI parameters
 
 ### Configuration Schema
+
 ```json
 {
   "participants": ["claude-code", "gemini-cli"],
@@ -68,24 +78,28 @@ interface LLMProvider {
 ```
 
 ### Validation
+
 - All specified participants must have valid implementations
 - System fails fast if any provider is unavailable
 
 ## Game Mechanics
 
 ### Round Structure
+
 1. **Baseline Creation**: One LLM creates a coding task with 100% test coverage
 2. **Bug Injection**: Another LLM introduces exactly one defect causing test failures
 3. **Fix Attempt**: Remaining LLM(s) attempt to restore tests to green
 4. **Rotation**: Participants rotate roles for subsequent rounds
 
 ### Task Requirements
+
 - **Fully flexible coding tasks**: Algorithms, data structures, any programming challenge
 - **Strategic selection**: Baseline creator chooses tasks they're confident with
 - **100% test coverage**: Required for baseline acceptance
 - **Test immutability**: Tests must never be modified during bug injection or fixing
 
 ### Scoring System
+
 - **Successful fix**: +1 point to fixer
 - **Unfixed bug**: +1 point to bug creator
 - **Invalid baseline**: -1 point to baseline creator
@@ -94,6 +108,7 @@ interface LLMProvider {
 ## Data Storage
 
 ### Event Schema (DuckDB)
+
 ```sql
 CREATE TABLE events (
   id BIGINT PRIMARY KEY,
@@ -115,6 +130,7 @@ CREATE INDEX idx_events_participant ON events(participant_id);
 ```
 
 ### Event Types
+
 - `competition_started`
 - `round_started`
 - `baseline_creation_started`
@@ -132,15 +148,18 @@ CREATE INDEX idx_events_participant ON events(participant_id);
 - `competition_completed`
 
 ### Storage Configuration
+
 - **Local development**: DuckDB file in project directory
 - **Production ready**: S3 storage support (not implemented initially)
 
 ## Competition Results
 
 ### On-Demand Statistics
+
 Results computed by processing events, not stored separately.
 
 ### Output Format (JSON)
+
 ```json
 {
   "competition_summary": {
@@ -159,7 +178,7 @@ Results computed by processing events, not stored separately.
       "rank": 1
     },
     {
-      "participant": "gemini-cli", 
+      "participant": "gemini-cli",
       "score": 1,
       "rank": 2
     }
@@ -198,7 +217,7 @@ Results computed by processing events, not stored separately.
     {
       "round": 2,
       "baseline_creator": "gemini-cli",
-      "bug_injector": "claude-code", 
+      "bug_injector": "claude-code",
       "fixer": "claude-code",
       "outcome": "fixer_wins",
       "winner": "claude-code"
@@ -210,12 +229,14 @@ Results computed by processing events, not stored separately.
 ## Error Handling
 
 ### Fail-Fast Strategy
+
 - Any LLM failure causes immediate competition termination
 - No retry mechanisms initially
 - Clear error reporting with event trail
 - Edge cases handled by failing fast to keep system simple
 
 ### Failure Scenarios
+
 - Provider implementation not found
 - Timeout exceeded during any phase
 - Invalid baseline (tests fail or coverage < 100%)
@@ -225,6 +246,7 @@ Results computed by processing events, not stored separately.
 ## Implementation Priorities
 
 ### Phase 1: Core System
+
 1. Event storage with DuckDB
 2. LLM provider interface and abstractions
 3. Directory management and isolation
@@ -232,17 +254,20 @@ Results computed by processing events, not stored separately.
 5. Claude Code and Gemini CLI implementations
 
 ### Phase 2: Competition Logic
+
 1. Round-robin orchestration
 2. Test execution and validation
 3. File diff capture and storage
 4. Timeout handling
 
 ### Phase 3: Results and Analysis
+
 1. Event processing for statistics
 2. JSON results generation
 3. Competition history tracking
 
 ### Future Enhancements (Not In Scope)
+
 - Scheduled competitions
 - Web interface/dashboard
 - Advanced statistics and visualizations
@@ -253,17 +278,20 @@ Results computed by processing events, not stored separately.
 ## Technical Requirements
 
 ### Dependencies
+
 - Node.js 20+ (LTS)
 - TypeScript 5.x (strict mode)
 - DuckDB (via npm package)
 - Real CLI tools: `claude` command for Claude Code, equivalent for Gemini
 
 ### Development Environment
+
 - Local DuckDB file for development
 - Isolated directory structure in `/tmp` or configurable location
 - Manual testing via CLI commands
 
 ### Quality Assurance
+
 - TDD approach for all core functionality
 - Unit tests for event processing
 - Integration tests for LLM provider implementations

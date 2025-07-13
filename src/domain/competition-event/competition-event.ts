@@ -88,18 +88,18 @@ export class CompetitionEvent {
       new EventId(data.id),
       data.timestamp,
       new CompetitionId(data.competition_id),
-      typeof data.round_id === 'number' 
-        ? RoundId.fromNumber(data.round_id) 
+      typeof data.round_id === 'number'
+        ? RoundId.fromNumber(data.round_id)
         : RoundId.notApplicable(),
-      data.participant_id === 'SYSTEM' 
-        ? ParticipantId.system() 
+      data.participant_id === 'SYSTEM'
+        ? ParticipantId.system()
         : ParticipantId.fromString(data.participant_id),
       data.event_type as EventType,
       data.phase as Phase,
       data.data,
       data.success,
-      typeof data.duration_seconds === 'number' 
-        ? Duration.fromSeconds(data.duration_seconds) 
+      typeof data.duration_seconds === 'number'
+        ? Duration.fromSeconds(data.duration_seconds)
         : Duration.notMeasured()
     );
   }
@@ -127,7 +127,7 @@ export class CompetitionEvent {
       phase: this.phase,
       data: this.data,
       success: this.success,
-      duration_seconds: this.duration.getValue()
+      duration_seconds: this.duration.getValue(),
     };
   }
 }

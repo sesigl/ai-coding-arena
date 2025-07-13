@@ -7,18 +7,21 @@ This plan breaks down the implementation into small, testable increments that bu
 ## Phase 1: Foundation (Data Layer & Core Types)
 
 ### Step 1: Project Setup & Event Storage Core
+
 - Initialize TypeScript project with strict configuration
 - Set up DuckDB integration with event schema
 - Create core event types and storage interfaces
 - Basic event insertion and querying
 
 ### Step 2: Event Store Implementation
+
 - Implement EventStore class with CRUD operations
 - Add connection management and error handling
 - Create event querying by competition, type, and participant
 - Add comprehensive unit tests
 
 ### Step 3: Domain Models & Configuration
+
 - Define core domain types (Competition, Round, Participant)
 - Create configuration validation and parsing
 - Add result types for all operations
@@ -27,18 +30,21 @@ This plan breaks down the implementation into small, testable increments that bu
 ## Phase 2: LLM Provider Abstraction
 
 ### Step 4: LLM Provider Interface
+
 - Define LLMProvider interface and result types
 - Create base implementation with common functionality
 - Add provider registry and factory pattern
 - Mock provider for testing
 
 ### Step 5: File System Operations
+
 - Directory management utilities (create, clean, copy)
 - File diff capture and analysis
 - Workspace isolation and cleanup
 - Integration with event logging
 
 ### Step 6: Claude Code Provider
+
 - Implement ClaudeCodeProvider with real CLI integration
 - Command execution with timeout and error handling
 - Output parsing and event capture
@@ -47,24 +53,28 @@ This plan breaks down the implementation into small, testable increments that bu
 ## Phase 3: Competition Core Logic
 
 ### Step 7: Competition Runner Foundation
+
 - CompetitionRunner class with basic lifecycle
 - Round orchestration and participant rotation
 - Event logging for all major operations
 - Configuration validation and setup
 
 ### Step 8: Baseline Creation Phase
+
 - Implement baseline creation workflow
 - Test execution and coverage validation
 - File artifact management
 - Timeout handling with proper cleanup
 
 ### Step 9: Bug Injection Phase
+
 - Bug injection workflow implementation
 - Test failure validation
 - Code diff capture and storage
 - Integration with baseline artifacts
 
 ### Step 10: Fix Attempt Phase
+
 - Fix attempt workflow implementation
 - Test restoration validation
 - Success/failure determination
@@ -73,12 +83,14 @@ This plan breaks down the implementation into small, testable increments that bu
 ## Phase 4: Results & Statistics
 
 ### Step 11: Event Processing Engine
+
 - Event aggregation and analysis utilities
 - Statistics calculation from event streams
 - Performance metrics computation
 - Data validation and consistency checks
 
 ### Step 12: Results Generation
+
 - JSON results formatting
 - Leaderboard calculation
 - Individual and competition statistics
@@ -87,18 +99,21 @@ This plan breaks down the implementation into small, testable increments that bu
 ## Phase 5: CLI & Integration
 
 ### Step 13: CLI Interface
+
 - Command-line argument parsing
 - Configuration file support
 - Progress reporting and logging
 - Error reporting and help
 
 ### Step 14: End-to-End Integration
+
 - Complete competition flow testing
 - Multi-round competition execution
 - Error handling and recovery
 - Performance optimization
 
 ### Step 15: Additional Provider Support
+
 - Gemini CLI provider implementation
 - Provider abstraction refinement
 - Multi-provider competition testing
@@ -127,20 +142,22 @@ Requirements:
 
 Project structure should be:
 ```
+
 src/
 ├── types/
-│   ├── events.ts      # Event types and interfaces
-│   └── index.ts       # Re-exports
+│ ├── events.ts # Event types and interfaces
+│ └── index.ts # Re-exports
 ├── storage/
-│   ├── event-store.ts # EventStore implementation
-│   └── schema.sql     # Database schema
-├── index.ts           # Main exports
-└── __tests__/
-    └── event-store.test.ts
+│ ├── event-store.ts # EventStore implementation
+│ └── schema.sql # Database schema
+├── index.ts # Main exports
+└── **tests**/
+└── event-store.test.ts
 
 package.json
 tsconfig.json
 vitest.config.ts
+
 ```
 
 Focus on:
@@ -171,7 +188,7 @@ Requirements (MINIMAL - only what's needed):
 
 DO NOT ADD:
 - Time range filters (not needed yet)
-- Query builders (not needed yet) 
+- Query builders (not needed yet)
 - Connection pooling (not needed yet)
 - Advanced statistics (not needed yet)
 - Complex error types (not needed yet)
@@ -188,7 +205,7 @@ Ensure all code integrates cleanly with existing event types from Prompt 1.
 
 ## Prompt 3: Minimal Mock Provider
 
-```
+````
 Create a simple mock LLM provider to enable testing the first competition workflow.
 
 Context: You have basic event storage. Now create the simplest possible provider to test a workflow.
@@ -200,7 +217,8 @@ Requirements (MINIMAL - only what's needed):
      readonly name: string;
      createBaseline(workspaceDir: string): Promise<{success: boolean, message: string}>;
    }
-   ```
+````
+
 2. Implement `MockProvider` that:
    - Always succeeds with `success: true`
    - Creates a simple "Hello World" program with test
@@ -210,6 +228,7 @@ Requirements (MINIMAL - only what's needed):
    - `cleanupWorkspace(dir: string): Promise<void>` - removes directory
 
 Key files to create:
+
 ```
 src/
 ├── providers/
@@ -222,17 +241,20 @@ src/
 ```
 
 DO NOT ADD:
+
 - Complex domain models (not needed yet)
 - Configuration system (not needed yet)
 - Multiple provider types (not needed yet)
 - Bug injection/fix phases (not needed yet)
 
 Focus on:
+
 - Simple, working provider that can be tested
 - Basic file system operations
 - Minimal error handling
 
 This sets up the foundation for testing a basic competition workflow.
+
 ```
 
 ---
@@ -240,11 +262,13 @@ This sets up the foundation for testing a basic competition workflow.
 ## Prompt 4: Basic Competition Runner
 
 ```
+
 Create a minimal competition runner that can execute a single-participant baseline creation.
 
 Context: You have EventStore and MockProvider. Now create the simplest possible competition.
 
 Requirements (MINIMAL - only what's needed):
+
 1. Create `SimpleCompetitionRunner` that:
    - Takes a single provider and workspace directory
    - Executes baseline creation phase only
@@ -258,6 +282,7 @@ Requirements (MINIMAL - only what's needed):
    - Return result
 
 Key files to create:
+
 ```
 src/
 ├── competition/
@@ -267,6 +292,7 @@ src/
 ```
 
 DO NOT ADD:
+
 - Multiple participants (not needed yet)
 - Rounds system (not needed yet)
 - Bug injection/fix phases (not needed yet)
@@ -274,11 +300,13 @@ DO NOT ADD:
 - Scoring system (not needed yet)
 
 Focus on:
+
 - Single provider baseline creation workflow
 - Event logging integration
 - Basic error handling and cleanup
 
 This creates the foundation for more complex competition features.
+
 ```
 
 ---
@@ -286,17 +314,22 @@ This creates the foundation for more complex competition features.
 ## Prompt 5: Add Bug Injection to Mock Provider
 
 ```
+
 Extend the MockProvider to support bug injection, enabling a two-phase competition workflow.
 
 Context: You have a working single-phase competition with baseline creation. Now add bug injection.
 
 Requirements (MINIMAL - only what's needed):
+
 1. Extend `LLMProvider` interface:
    ```typescript
    interface LLMProvider {
      readonly name: string;
-     createBaseline(workspaceDir: string): Promise<{success: boolean, message: string}>;
-     injectBug(baselineDir: string, workspaceDir: string): Promise<{success: boolean, message: string}>;
+     createBaseline(workspaceDir: string): Promise<{ success: boolean; message: string }>;
+     injectBug(
+       baselineDir: string,
+       workspaceDir: string
+     ): Promise<{ success: boolean; message: string }>;
    }
    ```
 2. Update `MockProvider` to:
@@ -308,6 +341,7 @@ Requirements (MINIMAL - only what's needed):
    - Log events for both phases
 
 Key files to update:
+
 ```
 src/
 ├── providers/
@@ -321,17 +355,20 @@ src/
 ```
 
 DO NOT ADD:
+
 - Fix attempt phase (not needed yet)
 - Multiple participants (not needed yet)
 - Complex file diffing (not needed yet)
 - Test execution validation (not needed yet)
 
 Focus on:
+
 - Two-phase workflow with proper workspace isolation
 - Simple bug injection that breaks tests
 - Event logging for both phases
 
 This enables testing a more complete competition workflow.
+
 ```
 
 ---
@@ -339,18 +376,26 @@ This enables testing a more complete competition workflow.
 ## Prompt 6: Add Fix Attempt Phase
 
 ```
+
 Extend the MockProvider to support the fix attempt phase, completing the three-phase competition workflow.
 
 Context: You have baseline creation and bug injection working. Now add the final fix attempt phase.
 
 Requirements (MINIMAL - only what's needed):
+
 1. Extend `LLMProvider` interface:
    ```typescript
    interface LLMProvider {
      readonly name: string;
-     createBaseline(workspaceDir: string): Promise<{success: boolean, message: string}>;
-     injectBug(baselineDir: string, workspaceDir: string): Promise<{success: boolean, message: string}>;
-     fixAttempt(buggyDir: string, workspaceDir: string): Promise<{success: boolean, message: string}>;
+     createBaseline(workspaceDir: string): Promise<{ success: boolean; message: string }>;
+     injectBug(
+       baselineDir: string,
+       workspaceDir: string
+     ): Promise<{ success: boolean; message: string }>;
+     fixAttempt(
+       buggyDir: string,
+       workspaceDir: string
+     ): Promise<{ success: boolean; message: string }>;
    }
    ```
 2. Update `MockProvider` to:
@@ -363,6 +408,7 @@ Requirements (MINIMAL - only what's needed):
    - Return final competition result
 
 Key files to update:
+
 ```
 src/
 ├── providers/
@@ -376,17 +422,20 @@ src/
 ```
 
 DO NOT ADD:
+
 - Real CLI integration (not needed yet)
 - Multiple participants (not needed yet)
 - Scoring system (not needed yet)
 - Test execution validation (not needed yet)
 
 Focus on:
+
 - Complete three-phase workflow
 - Event logging for full audit trail
 - Basic success/failure tracking
 
 This completes the core competition workflow with mock provider.
+
 ```
 
 ---
@@ -394,11 +443,13 @@ This completes the core competition workflow with mock provider.
 ## Prompt 7: Simple CLI Interface
 
 ```
+
 Create a basic command-line interface to run competitions from the terminal.
 
 Context: You have a working three-phase competition with MockProvider. Now add a simple CLI.
 
 Requirements (MINIMAL - only what's needed):
+
 1. Create simple CLI that:
    - Takes workspace directory as argument
    - Runs a single competition with MockProvider
@@ -407,10 +458,11 @@ Requirements (MINIMAL - only what's needed):
 2. Basic structure:
    ```typescript
    // src/cli/index.ts
-   async function runCompetition(workspaceDir: string): Promise<void>
+   async function runCompetition(workspaceDir: string): Promise<void>;
    ```
 
 Key files to create:
+
 ```
 src/
 ├── cli/
@@ -422,22 +474,26 @@ src/
 ```
 
 CLI functionality:
+
 ```bash
 npm run cli ./workspace-dir  # Run competition in workspace-dir
 ```
 
 DO NOT ADD:
+
 - Complex argument parsing (not needed yet)
 - Configuration files (not needed yet)
 - Multiple commands (not needed yet)
 - Help system (not needed yet)
 
 Focus on:
+
 - Single command execution
 - Basic error handling and logging
 - Integration with SimpleCompetitionRunner
 
 This provides a simple way to test the complete workflow.
+
 ```
 
 ---
@@ -445,23 +501,26 @@ This provides a simple way to test the complete workflow.
 ## Prompt 8: Add Claude Code Provider
 
 ```
+
 Replace MockProvider with a real ClaudeCodeProvider that executes actual `claude` CLI commands.
 
 Context: You have a working end-to-end system with MockProvider. Now integrate with real Claude Code CLI.
 
 Requirements (MINIMAL - only what's needed):
+
 1. Create `ClaudeCodeProvider` that:
    - Implements same interface as MockProvider
    - Executes `claude` CLI commands with basic process management
    - Returns success/failure results
 2. Handle three phases:
    - `createBaseline()`: Run claude with baseline creation prompt
-   - `injectBug()`: Run claude with bug injection prompt  
+   - `injectBug()`: Run claude with bug injection prompt
    - `fixAttempt()`: Run claude with fix attempt prompt
 3. Basic timeout handling (30 second default)
 4. Simple error handling for CLI failures
 
 Key files to create:
+
 ```
 src/
 ├── providers/
@@ -471,18 +530,21 @@ src/
 ```
 
 DO NOT ADD:
+
 - Complex validation (not needed yet)
 - Test coverage checking (not needed yet)
 - Artifact collection (not needed yet)
 - Complex output parsing (not needed yet)
 
 Focus on:
+
 - Basic CLI command execution
 - Simple prompts for each phase
 - Timeout handling
 - Integration with existing LLMProvider interface
 
 This allows testing with real Claude Code CLI instead of mocks.
+
 ```
 
 ---
@@ -490,11 +552,13 @@ This allows testing with real Claude Code CLI instead of mocks.
 ## Prompt 9: Add Results Output
 
 ```
+
 Add simple results output to show competition statistics after completion.
 
 Context: You have a working competition system. Now add basic results reporting.
 
 Requirements (MINIMAL - only what's needed):
+
 1. Create simple results formatter that:
    - Shows competition summary (start/end times, participants)
    - Lists phase results (success/failure for each phase)
@@ -503,6 +567,7 @@ Requirements (MINIMAL - only what's needed):
 2. Integrate with CLI to show results after competition
 
 Key files to create:
+
 ```
 src/
 ├── results/
@@ -512,17 +577,20 @@ src/
 ```
 
 DO NOT ADD:
+
 - Complex analytics (not needed yet)
 - Performance metrics (not needed yet)
 - Trend analysis (not needed yet)
 - Data visualization (not needed yet)
 
 Focus on:
+
 - Simple, readable JSON output
 - Basic competition statistics
 - Integration with existing event data
 
 This provides visibility into competition outcomes.
+
 ```
 
 ---
@@ -530,11 +598,13 @@ This provides visibility into competition outcomes.
 ## Prompt 10: Add Multi-Participant Support
 
 ```
+
 Extend the system to support multiple participants in a single competition.
 
 Context: You have single-participant competitions working. Now add multiple participants.
 
 Requirements (MINIMAL - only what's needed):
+
 1. Update `SimpleCompetitionRunner` to:
    - Accept array of providers instead of single provider
    - Run each participant through all three phases
@@ -546,6 +616,7 @@ Requirements (MINIMAL - only what's needed):
    ```
 
 Key files to update:
+
 ```
 src/
 ├── competition/
@@ -555,17 +626,20 @@ src/
 ```
 
 DO NOT ADD:
+
 - Rounds system (not needed yet)
 - Participant rotation (not needed yet)
 - Complex scoring (not needed yet)
 - Parallel execution (not needed yet)
 
 Focus on:
+
 - Sequential execution of multiple participants
 - Individual result tracking
 - Basic error isolation between participants
 
 This enables basic multi-participant competitions.
+
 ```
 
 ---
@@ -593,3 +667,4 @@ Each prompt:
 - **Focuses on real value** - working features over comprehensive APIs
 
 The plan progresses from a simple working system to gradually more capable features, ensuring nothing is built until it's actually needed.
+```

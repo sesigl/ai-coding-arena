@@ -11,27 +11,35 @@ import { Phase } from 'domain/competition-event/phase';
 import { Duration } from 'domain/competition-event/duration';
 
 export const TestEventFactory = {
-  createBasicEvent(overrides: Partial<{
-    id: number;
-    competitionId: string;
-    roundId: number | 'NOT_APPLICABLE';
-    participantId: string;
-    eventType: EventType;
-    phase: Phase;
-    success: boolean;
-    durationSeconds: number | 'NOT_MEASURED';
-  }> = {}): CompetitionEvent {
+  createBasicEvent(
+    overrides: Partial<{
+      id: number;
+      competitionId: string;
+      roundId: number | 'NOT_APPLICABLE';
+      participantId: string;
+      eventType: EventType;
+      phase: Phase;
+      success: boolean;
+      durationSeconds: number | 'NOT_MEASURED';
+    }> = {}
+  ): CompetitionEvent {
     return new CompetitionEvent(
       new EventId(overrides.id ?? 1),
       new Date(),
       new CompetitionId(overrides.competitionId ?? 'test-comp'),
-      overrides.roundId === 'NOT_APPLICABLE' ? RoundId.notApplicable() : RoundId.fromNumber(overrides.roundId ?? 1),
-      overrides.participantId === 'SYSTEM' ? ParticipantId.system() : ParticipantId.fromString(overrides.participantId ?? 'test-participant'),
+      overrides.roundId === 'NOT_APPLICABLE'
+        ? RoundId.notApplicable()
+        : RoundId.fromNumber(overrides.roundId ?? 1),
+      overrides.participantId === 'SYSTEM'
+        ? ParticipantId.system()
+        : ParticipantId.fromString(overrides.participantId ?? 'test-participant'),
       overrides.eventType ?? EventType.COMPETITION_STARTED,
       overrides.phase ?? Phase.SYSTEM,
       { message: 'Test event' },
       overrides.success ?? true,
-      overrides.durationSeconds === 'NOT_MEASURED' ? Duration.notMeasured() : Duration.fromSeconds(overrides.durationSeconds ?? 5)
+      overrides.durationSeconds === 'NOT_MEASURED'
+        ? Duration.notMeasured()
+        : Duration.fromSeconds(overrides.durationSeconds ?? 5)
     );
-  }
+  },
 };

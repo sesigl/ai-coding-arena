@@ -5,5 +5,5 @@ export enum Phase {
   BASELINE = 'baseline',
   BUG_INJECTION = 'bug_injection',
   FIX_ATTEMPT = 'fix_attempt',
-  SYSTEM = 'system'
+  SYSTEM = 'system',
 }

@@ -16,5 +16,5 @@ export enum EventType {
   FIX_ATTEMPT_STARTED = 'fix_attempt_started',
   FIX_ATTEMPT_COMPLETED = 'fix_attempt_completed',
   ROUND_COMPLETED = 'round_completed',
-  COMPETITION_COMPLETED = 'competition_completed'
+  COMPETITION_COMPLETED = 'competition_completed',
 }
