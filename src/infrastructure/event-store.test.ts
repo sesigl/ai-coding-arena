@@ -3,99 +3,15 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { EventStore } from './event-store';
-import { CompetitionEvent } from 'domain/competition-event/competition-event';
-import { EventId } from 'domain/competition-event/event-id';
 import { CompetitionId } from 'domain/competition-event/competition-id';
-import { RoundId } from 'domain/competition-event/round-id';
 import { ParticipantId } from 'domain/competition-event/participant-id';
 import { EventType } from 'domain/competition-event/event-type';
 import { Phase } from 'domain/competition-event/phase';
-import { Duration } from 'domain/competition-event/duration';
 import { unlink, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
-import { Result } from 'neverthrow';
+import { TestEventFactory } from '../test-utils/test-event-factory';
+import { TestAssertions } from '../test-utils/test-assertions';
 
-// Test helpers to reduce duplication and improve readability
-const TestEventFactory = {
-  createBasicEvent(overrides: Partial<{
-    id: number;
-    competitionId: string;
-    roundId: number | 'NOT_APPLICABLE';
-    participantId: string;
-    eventType: EventType;
-    phase: Phase;
-    success: boolean;
-    durationSeconds: number | 'NOT_MEASURED';
-  }> = {}): CompetitionEvent {
-    return new CompetitionEvent(
-      new EventId(overrides.id ?? 1),
-      new Date(),
-      new CompetitionId(overrides.competitionId ?? 'test-comp'),
-      overrides.roundId === 'NOT_APPLICABLE' ? RoundId.notApplicable() : RoundId.fromNumber(overrides.roundId ?? 1),
-      overrides.participantId === 'SYSTEM' ? ParticipantId.system() : ParticipantId.fromString(overrides.participantId ?? 'test-participant'),
-      overrides.eventType ?? EventType.COMPETITION_STARTED,
-      overrides.phase ?? Phase.SYSTEM,
-      { message: 'Test event' },
-      overrides.success ?? true,
-      overrides.durationSeconds === 'NOT_MEASURED' ? Duration.notMeasured() : Duration.fromSeconds(overrides.durationSeconds ?? 5)
-    );
-  }
-};
-
-const TestAssertions = {
-  expectResultOk<T>(result: Result<T, Error>): void {
-    if (result.isErr()) {
-      console.error('Unexpected error:', result.error);
-    }
-    expect(result.isOk()).toBe(true);
-  },
-
-  expectEventArrayLength<T extends CompetitionEvent[]>(
-    result: Result<T, Error>, 
-    expectedLength: number
-  ): void {
-    this.expectResultOk(result);
-    if (result.isOk()) {
-      expect(result.value).toHaveLength(expectedLength);
-    }
-  },
-
-  expectAllEventsHaveCompetition(
-    result: Result<CompetitionEvent[], Error>,
-    expectedCompetitionId: string
-  ): void {
-    this.expectResultOk(result);
-    if (result.isOk()) {
-      result.value.forEach((event: CompetitionEvent) => {
-        expect(event.getCompetitionId().getValue()).toBe(expectedCompetitionId);
-      });
-    }
-  },
-
-  expectAllEventsHaveParticipant(
-    result: Result<CompetitionEvent[], Error>,
-    expectedParticipantId: string
-  ): void {
-    this.expectResultOk(result);
-    if (result.isOk()) {
-      result.value.forEach((event: CompetitionEvent) => {
-        expect(event.getParticipantId().getValue()).toBe(expectedParticipantId);
-      });
-    }
-  },
-
-  expectAllEventsHaveType(
-    result: Result<CompetitionEvent[], Error>,
-    expectedEventType: EventType
-  ): void {
-    this.expectResultOk(result);
-    if (result.isOk()) {
-      result.value.forEach((event: CompetitionEvent) => {
-        expect(event.getEventType()).toBe(expectedEventType);
-      });
-    }
-  }
-};
 
 describe('EventStore', () => {
   let eventStore: EventStore;
