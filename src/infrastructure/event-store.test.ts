@@ -136,4 +136,65 @@ describe('EventStore', () => {
       }
     });
   });
+
+  describe('getEventsByCompetition', () => {
+    beforeEach(async () => {
+      const events = [
+        new CompetitionEvent(
+          new EventId(1),
+          new Date(),
+          new CompetitionId('comp-1'),
+          RoundId.notApplicable(),
+          ParticipantId.system(),
+          EventType.COMPETITION_STARTED,
+          Phase.SYSTEM,
+          { message: 'Competition 1 started' },
+          true,
+          Duration.notMeasured()
+        ),
+        new CompetitionEvent(
+          new EventId(2),
+          new Date(),
+          new CompetitionId('comp-1'),
+          RoundId.fromNumber(1),
+          ParticipantId.fromString('claude-code'),
+          EventType.ROUND_STARTED,
+          Phase.BASELINE,
+          { round: 1 },
+          true,
+          Duration.fromSeconds(10)
+        ),
+        new CompetitionEvent(
+          new EventId(3),
+          new Date(),
+          new CompetitionId('comp-2'),
+          RoundId.fromNumber(1),
+          ParticipantId.system(),
+          EventType.COMPETITION_STARTED,
+          Phase.SYSTEM,
+          { message: 'Different competition' },
+          true,
+          Duration.notMeasured()
+        )
+      ];
+
+      for (const event of events) {
+        await eventStore.insertEvent(event);
+      }
+    });
+
+    it('should retrieve events for specific competition', async () => {
+      const competitionId = new CompetitionId('comp-1');
+      const result = await eventStore.getEventsByCompetition(competitionId);
+      
+      expect(result.isOk()).toBe(true);
+      
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(2);
+        result.value.forEach((event: CompetitionEvent) => {
+          expect(event.getCompetitionId().getValue()).toBe('comp-1');
+        });
+      }
+    });
+  });
 });
