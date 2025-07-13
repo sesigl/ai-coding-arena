@@ -13,6 +13,89 @@ import { Phase } from 'domain/competition-event/phase';
 import { Duration } from 'domain/competition-event/duration';
 import { unlink, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
+import { Result } from 'neverthrow';
+
+// Test helpers to reduce duplication and improve readability
+const TestEventFactory = {
+  createBasicEvent(overrides: Partial<{
+    id: number;
+    competitionId: string;
+    roundId: number | 'NOT_APPLICABLE';
+    participantId: string;
+    eventType: EventType;
+    phase: Phase;
+    success: boolean;
+    durationSeconds: number | 'NOT_MEASURED';
+  }> = {}): CompetitionEvent {
+    return new CompetitionEvent(
+      new EventId(overrides.id ?? 1),
+      new Date(),
+      new CompetitionId(overrides.competitionId ?? 'test-comp'),
+      overrides.roundId === 'NOT_APPLICABLE' ? RoundId.notApplicable() : RoundId.fromNumber(overrides.roundId ?? 1),
+      overrides.participantId === 'SYSTEM' ? ParticipantId.system() : ParticipantId.fromString(overrides.participantId ?? 'test-participant'),
+      overrides.eventType ?? EventType.COMPETITION_STARTED,
+      overrides.phase ?? Phase.SYSTEM,
+      { message: 'Test event' },
+      overrides.success ?? true,
+      overrides.durationSeconds === 'NOT_MEASURED' ? Duration.notMeasured() : Duration.fromSeconds(overrides.durationSeconds ?? 5)
+    );
+  }
+};
+
+const TestAssertions = {
+  expectResultOk<T>(result: Result<T, Error>): void {
+    if (result.isErr()) {
+      console.error('Unexpected error:', result.error);
+    }
+    expect(result.isOk()).toBe(true);
+  },
+
+  expectEventArrayLength<T extends CompetitionEvent[]>(
+    result: Result<T, Error>, 
+    expectedLength: number
+  ): void {
+    this.expectResultOk(result);
+    if (result.isOk()) {
+      expect(result.value).toHaveLength(expectedLength);
+    }
+  },
+
+  expectAllEventsHaveCompetition(
+    result: Result<CompetitionEvent[], Error>,
+    expectedCompetitionId: string
+  ): void {
+    this.expectResultOk(result);
+    if (result.isOk()) {
+      result.value.forEach((event: CompetitionEvent) => {
+        expect(event.getCompetitionId().getValue()).toBe(expectedCompetitionId);
+      });
+    }
+  },
+
+  expectAllEventsHaveParticipant(
+    result: Result<CompetitionEvent[], Error>,
+    expectedParticipantId: string
+  ): void {
+    this.expectResultOk(result);
+    if (result.isOk()) {
+      result.value.forEach((event: CompetitionEvent) => {
+        expect(event.getParticipantId().getValue()).toBe(expectedParticipantId);
+      });
+    }
+  },
+
+  expectAllEventsHaveType(
+    result: Result<CompetitionEvent[], Error>,
+    expectedEventType: EventType
+  ): void {
+    this.expectResultOk(result);
+    if (result.isOk()) {
+      result.value.forEach((event: CompetitionEvent) => {
+        expect(event.getEventType()).toBe(expectedEventType);
+      });
+    }
+  }
+};
 
 describe('EventStore', () => {
   let eventStore: EventStore;
@@ -46,75 +129,49 @@ describe('EventStore', () => {
 
   describe('insertEvent', () => {
     it('should insert a basic event successfully', async () => {
-      const event = new CompetitionEvent(
-        new EventId(1),
-        new Date(),
-        new CompetitionId('test-comp-1'),
-        RoundId.fromNumber(1),
-        ParticipantId.fromString('claude-code'),
-        EventType.COMPETITION_STARTED,
-        Phase.SYSTEM,
-        { message: 'Test competition started' },
-        true,
-        Duration.fromSeconds(5)
-      );
+      const event = TestEventFactory.createBasicEvent({
+        id: 1,
+        competitionId: 'test-comp-1',
+        participantId: 'claude-code'
+      });
 
       const result = await eventStore.insertEvent(event);
-      if (result.isErr()) {
-        console.error('Insert error:', result.error);
-      }
-      expect(result.isOk()).toBe(true);
+      TestAssertions.expectResultOk(result);
     });
 
     it('should handle system events with explicit values', async () => {
-      const event = new CompetitionEvent(
-        new EventId(2),
-        new Date(),
-        new CompetitionId('test-comp-2'),
-        RoundId.notApplicable(),
-        ParticipantId.system(),
-        EventType.COMPETITION_STARTED,
-        Phase.SYSTEM,
-        { message: 'Test event' },
-        true,
-        Duration.notMeasured()
-      );
+      const event = TestEventFactory.createBasicEvent({
+        id: 2,
+        competitionId: 'test-comp-2',
+        roundId: 'NOT_APPLICABLE',
+        participantId: 'SYSTEM',
+        durationSeconds: 'NOT_MEASURED'
+      });
 
       const result = await eventStore.insertEvent(event);
-      if (result.isErr()) {
-        console.error('Insert error:', result.error);
-      }
-      expect(result.isOk()).toBe(true);
+      TestAssertions.expectResultOk(result);
     });
   });
 
   describe('getEvents', () => {
     beforeEach(async () => {
       const events = [
-        new CompetitionEvent(
-          new EventId(1),
-          new Date(),
-          new CompetitionId('comp-1'),
-          RoundId.notApplicable(),
-          ParticipantId.system(),
-          EventType.COMPETITION_STARTED,
-          Phase.SYSTEM,
-          { message: 'Competition 1 started' },
-          true,
-          Duration.notMeasured()
-        ),
-        new CompetitionEvent(
-          new EventId(2),
-          new Date(),
-          new CompetitionId('comp-2'),
-          RoundId.fromNumber(1),
-          ParticipantId.system(),
-          EventType.ROUND_STARTED,
-          Phase.SYSTEM,
-          { round: 1 },
-          true,
-          Duration.notMeasured()
-        )
+        TestEventFactory.createBasicEvent({
+          id: 1,
+          competitionId: 'comp-1',
+          roundId: 'NOT_APPLICABLE',
+          participantId: 'SYSTEM',
+          eventType: EventType.COMPETITION_STARTED,
+          durationSeconds: 'NOT_MEASURED'
+        }),
+        TestEventFactory.createBasicEvent({
+          id: 2,
+          competitionId: 'comp-2',
+          roundId: 1,
+          participantId: 'SYSTEM',
+          eventType: EventType.ROUND_STARTED,
+          durationSeconds: 'NOT_MEASURED'
+        })
       ];
 
       for (const event of events) {
@@ -124,13 +181,9 @@ describe('EventStore', () => {
 
     it('should retrieve all events', async () => {
       const result = await eventStore.getEvents();
-      if (result.isErr()) {
-        console.error('Get events error:', result.error);
-      }
-      expect(result.isOk()).toBe(true);
+      TestAssertions.expectEventArrayLength(result, 2);
       
       if (result.isOk()) {
-        expect(result.value).toHaveLength(2);
         expect(result.value[0]?.getCompetitionId().getValue()).toBe('comp-1');
         expect(result.value[1]?.getCompetitionId().getValue()).toBe('comp-2');
       }
@@ -140,42 +193,31 @@ describe('EventStore', () => {
   describe('getEventsByCompetition', () => {
     beforeEach(async () => {
       const events = [
-        new CompetitionEvent(
-          new EventId(1),
-          new Date(),
-          new CompetitionId('comp-1'),
-          RoundId.notApplicable(),
-          ParticipantId.system(),
-          EventType.COMPETITION_STARTED,
-          Phase.SYSTEM,
-          { message: 'Competition 1 started' },
-          true,
-          Duration.notMeasured()
-        ),
-        new CompetitionEvent(
-          new EventId(2),
-          new Date(),
-          new CompetitionId('comp-1'),
-          RoundId.fromNumber(1),
-          ParticipantId.fromString('claude-code'),
-          EventType.ROUND_STARTED,
-          Phase.BASELINE,
-          { round: 1 },
-          true,
-          Duration.fromSeconds(10)
-        ),
-        new CompetitionEvent(
-          new EventId(3),
-          new Date(),
-          new CompetitionId('comp-2'),
-          RoundId.fromNumber(1),
-          ParticipantId.system(),
-          EventType.COMPETITION_STARTED,
-          Phase.SYSTEM,
-          { message: 'Different competition' },
-          true,
-          Duration.notMeasured()
-        )
+        TestEventFactory.createBasicEvent({
+          id: 1,
+          competitionId: 'comp-1',
+          roundId: 'NOT_APPLICABLE',
+          participantId: 'SYSTEM',
+          eventType: EventType.COMPETITION_STARTED,
+          durationSeconds: 'NOT_MEASURED'
+        }),
+        TestEventFactory.createBasicEvent({
+          id: 2,
+          competitionId: 'comp-1',
+          roundId: 1,
+          participantId: 'claude-code',
+          eventType: EventType.ROUND_STARTED,
+          phase: Phase.BASELINE,
+          durationSeconds: 10
+        }),
+        TestEventFactory.createBasicEvent({
+          id: 3,
+          competitionId: 'comp-2',
+          roundId: 1,
+          participantId: 'SYSTEM',
+          eventType: EventType.COMPETITION_STARTED,
+          durationSeconds: 'NOT_MEASURED'
+        })
       ];
 
       for (const event of events) {
@@ -187,56 +229,42 @@ describe('EventStore', () => {
       const competitionId = new CompetitionId('comp-1');
       const result = await eventStore.getEventsByCompetition(competitionId);
       
-      expect(result.isOk()).toBe(true);
-      
-      if (result.isOk()) {
-        expect(result.value).toHaveLength(2);
-        result.value.forEach((event: CompetitionEvent) => {
-          expect(event.getCompetitionId().getValue()).toBe('comp-1');
-        });
-      }
+      TestAssertions.expectEventArrayLength(result, 2);
+      TestAssertions.expectAllEventsHaveCompetition(result, 'comp-1');
     });
   });
 
   describe('getEventsByParticipant', () => {
     beforeEach(async () => {
       const events = [
-        new CompetitionEvent(
-          new EventId(1),
-          new Date(),
-          new CompetitionId('comp-1'),
-          RoundId.fromNumber(1),
-          ParticipantId.fromString('claude-code'),
-          EventType.BASELINE_CREATION_STARTED,
-          Phase.BASELINE,
-          { message: 'Claude baseline started' },
-          true,
-          Duration.fromSeconds(5)
-        ),
-        new CompetitionEvent(
-          new EventId(2),
-          new Date(),
-          new CompetitionId('comp-1'),
-          RoundId.fromNumber(1),
-          ParticipantId.fromString('gemini-cli'),
-          EventType.BUG_INJECTION_STARTED,
-          Phase.BUG_INJECTION,
-          { message: 'Gemini bug injection' },
-          true,
-          Duration.fromSeconds(8)
-        ),
-        new CompetitionEvent(
-          new EventId(3),
-          new Date(),
-          new CompetitionId('comp-1'),
-          RoundId.fromNumber(1),
-          ParticipantId.fromString('claude-code'),
-          EventType.FIX_ATTEMPT_STARTED,
-          Phase.FIX_ATTEMPT,
-          { message: 'Claude fix attempt' },
-          false,
-          Duration.fromSeconds(15)
-        )
+        TestEventFactory.createBasicEvent({
+          id: 1,
+          competitionId: 'comp-1',
+          roundId: 1,
+          participantId: 'claude-code',
+          eventType: EventType.BASELINE_CREATION_STARTED,
+          phase: Phase.BASELINE,
+          durationSeconds: 5
+        }),
+        TestEventFactory.createBasicEvent({
+          id: 2,
+          competitionId: 'comp-1',
+          roundId: 1,
+          participantId: 'gemini-cli',
+          eventType: EventType.BUG_INJECTION_STARTED,
+          phase: Phase.BUG_INJECTION,
+          durationSeconds: 8
+        }),
+        TestEventFactory.createBasicEvent({
+          id: 3,
+          competitionId: 'comp-1',
+          roundId: 1,
+          participantId: 'claude-code',
+          eventType: EventType.FIX_ATTEMPT_STARTED,
+          phase: Phase.FIX_ATTEMPT,
+          success: false,
+          durationSeconds: 15
+        })
       ];
 
       for (const event of events) {
@@ -248,56 +276,42 @@ describe('EventStore', () => {
       const participantId = ParticipantId.fromString('claude-code');
       const result = await eventStore.getEventsByParticipant(participantId);
       
-      expect(result.isOk()).toBe(true);
-      
-      if (result.isOk()) {
-        expect(result.value).toHaveLength(2);
-        result.value.forEach((event: CompetitionEvent) => {
-          expect(event.getParticipantId().getValue()).toBe('claude-code');
-        });
-      }
+      TestAssertions.expectEventArrayLength(result, 2);
+      TestAssertions.expectAllEventsHaveParticipant(result, 'claude-code');
     });
   });
 
   describe('getEventsByType', () => {
     beforeEach(async () => {
       const events = [
-        new CompetitionEvent(
-          new EventId(1),
-          new Date(),
-          new CompetitionId('comp-1'),
-          RoundId.fromNumber(1),
-          ParticipantId.fromString('claude-code'),
-          EventType.BASELINE_CREATION_STARTED,
-          Phase.BASELINE,
-          { message: 'Baseline started' },
-          true,
-          Duration.fromSeconds(5)
-        ),
-        new CompetitionEvent(
-          new EventId(2),
-          new Date(),
-          new CompetitionId('comp-1'),
-          RoundId.fromNumber(1),
-          ParticipantId.fromString('gemini-cli'),
-          EventType.BASELINE_CREATION_STARTED,
-          Phase.BASELINE,
-          { message: 'Another baseline' },
-          true,
-          Duration.fromSeconds(8)
-        ),
-        new CompetitionEvent(
-          new EventId(3),
-          new Date(),
-          new CompetitionId('comp-1'),
-          RoundId.fromNumber(1),
-          ParticipantId.fromString('claude-code'),
-          EventType.BUG_INJECTION_STARTED,
-          Phase.BUG_INJECTION,
-          { message: 'Bug injection' },
-          false,
-          Duration.fromSeconds(12)
-        )
+        TestEventFactory.createBasicEvent({
+          id: 1,
+          competitionId: 'comp-1',
+          roundId: 1,
+          participantId: 'claude-code',
+          eventType: EventType.BASELINE_CREATION_STARTED,
+          phase: Phase.BASELINE,
+          durationSeconds: 5
+        }),
+        TestEventFactory.createBasicEvent({
+          id: 2,
+          competitionId: 'comp-1',
+          roundId: 1,
+          participantId: 'gemini-cli',
+          eventType: EventType.BASELINE_CREATION_STARTED,
+          phase: Phase.BASELINE,
+          durationSeconds: 8
+        }),
+        TestEventFactory.createBasicEvent({
+          id: 3,
+          competitionId: 'comp-1',
+          roundId: 1,
+          participantId: 'claude-code',
+          eventType: EventType.BUG_INJECTION_STARTED,
+          phase: Phase.BUG_INJECTION,
+          success: false,
+          durationSeconds: 12
+        })
       ];
 
       for (const event of events) {
@@ -308,56 +322,42 @@ describe('EventStore', () => {
     it('should retrieve events for specific event type', async () => {
       const result = await eventStore.getEventsByType(EventType.BASELINE_CREATION_STARTED);
       
-      expect(result.isOk()).toBe(true);
-      
-      if (result.isOk()) {
-        expect(result.value).toHaveLength(2);
-        result.value.forEach((event: CompetitionEvent) => {
-          expect(event.getEventType()).toBe(EventType.BASELINE_CREATION_STARTED);
-        });
-      }
+      TestAssertions.expectEventArrayLength(result, 2);
+      TestAssertions.expectAllEventsHaveType(result, EventType.BASELINE_CREATION_STARTED);
     });
   });
 
   describe('getEventCount', () => {
     beforeEach(async () => {
       const events = [
-        new CompetitionEvent(
-          new EventId(1),
-          new Date(),
-          new CompetitionId('comp-1'),
-          RoundId.fromNumber(1),
-          ParticipantId.fromString('claude-code'),
-          EventType.BASELINE_CREATION_STARTED,
-          Phase.BASELINE,
-          { message: 'Event 1' },
-          true,
-          Duration.fromSeconds(5)
-        ),
-        new CompetitionEvent(
-          new EventId(2),
-          new Date(),
-          new CompetitionId('comp-1'),
-          RoundId.fromNumber(1),
-          ParticipantId.fromString('gemini-cli'),
-          EventType.BUG_INJECTION_STARTED,
-          Phase.BUG_INJECTION,
-          { message: 'Event 2' },
-          true,
-          Duration.fromSeconds(8)
-        ),
-        new CompetitionEvent(
-          new EventId(3),
-          new Date(),
-          new CompetitionId('comp-2'),
-          RoundId.fromNumber(1),
-          ParticipantId.fromString('claude-code'),
-          EventType.BASELINE_CREATION_STARTED,
-          Phase.BASELINE,
-          { message: 'Event 3' },
-          false,
-          Duration.fromSeconds(12)
-        )
+        TestEventFactory.createBasicEvent({
+          id: 1,
+          competitionId: 'comp-1',
+          roundId: 1,
+          participantId: 'claude-code',
+          eventType: EventType.BASELINE_CREATION_STARTED,
+          phase: Phase.BASELINE,
+          durationSeconds: 5
+        }),
+        TestEventFactory.createBasicEvent({
+          id: 2,
+          competitionId: 'comp-1',
+          roundId: 1,
+          participantId: 'gemini-cli',
+          eventType: EventType.BUG_INJECTION_STARTED,
+          phase: Phase.BUG_INJECTION,
+          durationSeconds: 8
+        }),
+        TestEventFactory.createBasicEvent({
+          id: 3,
+          competitionId: 'comp-2',
+          roundId: 1,
+          participantId: 'claude-code',
+          eventType: EventType.BASELINE_CREATION_STARTED,
+          phase: Phase.BASELINE,
+          success: false,
+          durationSeconds: 12
+        })
       ];
 
       for (const event of events) {
@@ -368,8 +368,7 @@ describe('EventStore', () => {
     it('should count all events', async () => {
       const result = await eventStore.getEventCount();
       
-      expect(result.isOk()).toBe(true);
-      
+      TestAssertions.expectResultOk(result);
       if (result.isOk()) {
         expect(result.value).toBe(3);
       }
