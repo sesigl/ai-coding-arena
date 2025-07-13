@@ -155,7 +155,7 @@ Follow TDD: write tests first, then implement to make them pass.
 
 ---
 
-## Prompt 2: Event Store Implementation
+d
 
 ```
 Building on the previous implementation, enhance the EventStore with full CRUD operations, proper connection management, and comprehensive querying capabilities.

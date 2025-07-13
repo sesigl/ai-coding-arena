@@ -7,6 +7,8 @@ import { join } from 'path';
 import { Result, ok, err } from 'neverthrow';
 import { CompetitionEvent } from 'domain/competition-event/competition-event';
 import { CompetitionId } from 'domain/competition-event/competition-id';
+import { ParticipantId } from 'domain/competition-event/participant-id';
+import { EventType } from 'domain/competition-event/event-type';
 
 export class EventStore {
   private db: duckdb.Database | undefined;
@@ -121,6 +123,66 @@ export class EventStore {
       return ok(events);
     } catch (error) {
       return err(error instanceof Error ? error : new Error('Failed to get events by competition'));
+    }
+  }
+
+  async getEventsByParticipant(participantId: ParticipantId): Promise<Result<CompetitionEvent[], Error>> {
+    if (!this.db) {
+      return err(new Error('Database not initialized'));
+    }
+
+    try {
+      const query = 'SELECT * FROM events WHERE participant_id = ? ORDER BY timestamp ASC';
+      const rows = await this.all(query, [participantId.getValue()]);
+      
+      const events: CompetitionEvent[] = rows.map(row => 
+        CompetitionEvent.fromRawData({
+          id: row.id,
+          timestamp: new Date(row.timestamp),
+          competition_id: row.competition_id,
+          round_id: isNaN(Number(row.round_id)) ? row.round_id as 'NOT_APPLICABLE' : Number(row.round_id),
+          participant_id: row.participant_id,
+          event_type: row.event_type,
+          phase: row.phase,
+          data: JSON.parse(row.data),
+          success: row.success,
+          duration_seconds: isNaN(Number(row.duration_seconds)) ? row.duration_seconds as 'NOT_MEASURED' : Number(row.duration_seconds)
+        })
+      );
+
+      return ok(events);
+    } catch (error) {
+      return err(error instanceof Error ? error : new Error('Failed to get events by participant'));
+    }
+  }
+
+  async getEventsByType(eventType: EventType): Promise<Result<CompetitionEvent[], Error>> {
+    if (!this.db) {
+      return err(new Error('Database not initialized'));
+    }
+
+    try {
+      const query = 'SELECT * FROM events WHERE event_type = ? ORDER BY timestamp ASC';
+      const rows = await this.all(query, [eventType]);
+      
+      const events: CompetitionEvent[] = rows.map(row => 
+        CompetitionEvent.fromRawData({
+          id: row.id,
+          timestamp: new Date(row.timestamp),
+          competition_id: row.competition_id,
+          round_id: isNaN(Number(row.round_id)) ? row.round_id as 'NOT_APPLICABLE' : Number(row.round_id),
+          participant_id: row.participant_id,
+          event_type: row.event_type,
+          phase: row.phase,
+          data: JSON.parse(row.data),
+          success: row.success,
+          duration_seconds: isNaN(Number(row.duration_seconds)) ? row.duration_seconds as 'NOT_MEASURED' : Number(row.duration_seconds)
+        })
+      );
+
+      return ok(events);
+    } catch (error) {
+      return err(error instanceof Error ? error : new Error('Failed to get events by type'));
     }
   }
 

@@ -197,4 +197,125 @@ describe('EventStore', () => {
       }
     });
   });
+
+  describe('getEventsByParticipant', () => {
+    beforeEach(async () => {
+      const events = [
+        new CompetitionEvent(
+          new EventId(1),
+          new Date(),
+          new CompetitionId('comp-1'),
+          RoundId.fromNumber(1),
+          ParticipantId.fromString('claude-code'),
+          EventType.BASELINE_CREATION_STARTED,
+          Phase.BASELINE,
+          { message: 'Claude baseline started' },
+          true,
+          Duration.fromSeconds(5)
+        ),
+        new CompetitionEvent(
+          new EventId(2),
+          new Date(),
+          new CompetitionId('comp-1'),
+          RoundId.fromNumber(1),
+          ParticipantId.fromString('gemini-cli'),
+          EventType.BUG_INJECTION_STARTED,
+          Phase.BUG_INJECTION,
+          { message: 'Gemini bug injection' },
+          true,
+          Duration.fromSeconds(8)
+        ),
+        new CompetitionEvent(
+          new EventId(3),
+          new Date(),
+          new CompetitionId('comp-1'),
+          RoundId.fromNumber(1),
+          ParticipantId.fromString('claude-code'),
+          EventType.FIX_ATTEMPT_STARTED,
+          Phase.FIX_ATTEMPT,
+          { message: 'Claude fix attempt' },
+          false,
+          Duration.fromSeconds(15)
+        )
+      ];
+
+      for (const event of events) {
+        await eventStore.insertEvent(event);
+      }
+    });
+
+    it('should retrieve events for specific participant', async () => {
+      const participantId = ParticipantId.fromString('claude-code');
+      const result = await eventStore.getEventsByParticipant(participantId);
+      
+      expect(result.isOk()).toBe(true);
+      
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(2);
+        result.value.forEach((event: CompetitionEvent) => {
+          expect(event.getParticipantId().getValue()).toBe('claude-code');
+        });
+      }
+    });
+  });
+
+  describe('getEventsByType', () => {
+    beforeEach(async () => {
+      const events = [
+        new CompetitionEvent(
+          new EventId(1),
+          new Date(),
+          new CompetitionId('comp-1'),
+          RoundId.fromNumber(1),
+          ParticipantId.fromString('claude-code'),
+          EventType.BASELINE_CREATION_STARTED,
+          Phase.BASELINE,
+          { message: 'Baseline started' },
+          true,
+          Duration.fromSeconds(5)
+        ),
+        new CompetitionEvent(
+          new EventId(2),
+          new Date(),
+          new CompetitionId('comp-1'),
+          RoundId.fromNumber(1),
+          ParticipantId.fromString('gemini-cli'),
+          EventType.BASELINE_CREATION_STARTED,
+          Phase.BASELINE,
+          { message: 'Another baseline' },
+          true,
+          Duration.fromSeconds(8)
+        ),
+        new CompetitionEvent(
+          new EventId(3),
+          new Date(),
+          new CompetitionId('comp-1'),
+          RoundId.fromNumber(1),
+          ParticipantId.fromString('claude-code'),
+          EventType.BUG_INJECTION_STARTED,
+          Phase.BUG_INJECTION,
+          { message: 'Bug injection' },
+          false,
+          Duration.fromSeconds(12)
+        )
+      ];
+
+      for (const event of events) {
+        await eventStore.insertEvent(event);
+      }
+    });
+
+    it('should retrieve events for specific event type', async () => {
+      const result = await eventStore.getEventsByType(EventType.BASELINE_CREATION_STARTED);
+      
+      expect(result.isOk()).toBe(true);
+      
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(2);
+        result.value.forEach((event: CompetitionEvent) => {
+          expect(event.getEventType()).toBe(EventType.BASELINE_CREATION_STARTED);
+        });
+      }
+    });
+  });
 });
