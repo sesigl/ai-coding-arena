@@ -1,6 +1,3 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 # Run TypeScript compilation check
 echo "🔍 Running TypeScript compilation check..."
 npm run typecheck
