@@ -62,13 +62,8 @@ describe('MockProvider', () => {
     it('should create complete executable project structure', async () => {
       await mockProvider.createBaseline(workspaceDir);
 
-      // Check package.json exists
       expect(existsSync(join(workspaceDir, 'package.json'))).toBe(true);
-
-      // Check tsconfig.json exists
       expect(existsSync(join(workspaceDir, 'tsconfig.json'))).toBe(true);
-
-      // Check vitest.config.ts exists
       expect(existsSync(join(workspaceDir, 'vitest.config.ts'))).toBe(true);
     });
   });
@@ -77,7 +72,6 @@ describe('MockProvider', () => {
     let baselineDir: string;
 
     beforeEach(async () => {
-      // Create baseline first
       baselineDir = await createWorkspace('baseline-test');
       await mockProvider.createBaseline(baselineDir);
     });
@@ -94,13 +88,11 @@ describe('MockProvider', () => {
       expect(result.success).toBe(true);
       expect(result.message).toContain('bug injected');
 
-      // Verify files were copied and modified
       const calculatorFile = join(buggyDir, 'src', 'calculator.ts');
       expect(existsSync(calculatorFile)).toBe(true);
 
       const content = await readFile(calculatorFile, 'utf-8');
       expect(content).toContain('Calculator');
-      // Should contain the bug (return wrong result)
       expect(content).toContain('return a - b'); // Bug: subtraction instead of addition
 
       await cleanupWorkspace(buggyDir);
@@ -111,7 +103,6 @@ describe('MockProvider', () => {
 
       await mockProvider.injectBug(baselineDir, buggyDir);
 
-      // Check all project files exist
       expect(existsSync(join(buggyDir, 'package.json'))).toBe(true);
       expect(existsSync(join(buggyDir, 'tsconfig.json'))).toBe(true);
       expect(existsSync(join(buggyDir, 'vitest.config.ts'))).toBe(true);
@@ -160,7 +151,7 @@ describe('workspace utilities', () => {
       await cleanupWorkspace(workspaceDir);
       expect(existsSync(workspaceDir)).toBe(false);
 
-      workspaceDir = ''; // Prevent double cleanup
+      workspaceDir = '';
     });
 
     it('should not throw error if directory does not exist', async () => {

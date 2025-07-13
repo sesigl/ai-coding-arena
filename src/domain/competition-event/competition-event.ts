@@ -71,7 +71,6 @@ export class CompetitionEvent {
     return this.roundId.isNumeric();
   }
 
-  // Factory method for creating events from raw data
   static fromRawData(data: {
     id: number;
     timestamp: Date;
@@ -104,7 +103,6 @@ export class CompetitionEvent {
     );
   }
 
-  // Convert to raw data for persistence
   toRawData(): {
     id: number;
     timestamp: Date;

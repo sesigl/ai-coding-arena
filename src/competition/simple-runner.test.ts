@@ -18,7 +18,6 @@ describe('SimpleCompetitionRunner', () => {
   let dbPath: string;
 
   beforeEach(async () => {
-    // Create temporary database for each test
     dbPath = join(tmpdir(), `test-competition-${Date.now()}.db`);
     eventStore = new EventStore(dbPath);
     await eventStore.initialize();
@@ -54,14 +53,12 @@ describe('SimpleCompetitionRunner', () => {
 
       if (eventsResult.isOk()) {
         const events = eventsResult.value;
-        expect(events.length).toBeGreaterThanOrEqual(2); // Start and completion events
+        expect(events.length).toBeGreaterThanOrEqual(2);
 
-        // Check for baseline creation started event
         const startEvent = events.find(e => e.getEventType() === 'baseline_creation_started');
         expect(startEvent).toBeDefined();
         expect(startEvent?.isSuccess()).toBe(true);
 
-        // Check for baseline completed event
         const completedEvent = events.find(e => e.getEventType() === 'baseline_completed');
         expect(completedEvent).toBeDefined();
         expect(completedEvent?.isSuccess()).toBe(true);
@@ -76,7 +73,6 @@ describe('SimpleCompetitionRunner', () => {
       if (result.isOk()) {
         const competitionResult = result.value;
 
-        // Workspace should not exist after cleanup
         if (competitionResult.workspaceDir) {
           expect(existsSync(competitionResult.workspaceDir)).toBe(false);
         }
@@ -106,9 +102,8 @@ describe('SimpleCompetitionRunner', () => {
 
       if (eventsResult.isOk()) {
         const events = eventsResult.value;
-        expect(events.length).toBeGreaterThanOrEqual(4); // Start/end for both phases
+        expect(events.length).toBeGreaterThanOrEqual(4);
 
-        // Check for baseline events
         const baselineStartEvent = events.find(
           e => e.getEventType() === 'baseline_creation_started'
         );
@@ -117,7 +112,6 @@ describe('SimpleCompetitionRunner', () => {
         const baselineCompletedEvent = events.find(e => e.getEventType() === 'baseline_completed');
         expect(baselineCompletedEvent).toBeDefined();
 
-        // Check for bug injection events
         const bugInjectionStartEvent = events.find(
           e => e.getEventType() === 'bug_injection_started'
         );

@@ -10,11 +10,9 @@ export class MockProvider implements LLMProvider {
 
   async createBaseline(workspaceDir: string): Promise<{ success: boolean; message: string }> {
     try {
-      // Get the template directory path
       const currentDir = dirname(__filename);
       const templateDir = join(currentDir, 'baseline');
 
-      // Copy the entire template directory to workspace
       await cp(templateDir, workspaceDir, {
         recursive: true,
         force: true,
@@ -37,17 +35,14 @@ export class MockProvider implements LLMProvider {
     workspaceDir: string
   ): Promise<{ success: boolean; message: string }> {
     try {
-      // Copy baseline to workspace
       await cp(baselineDir, workspaceDir, {
         recursive: true,
         force: true,
       });
 
-      // Inject bug by modifying the calculator file
       const calculatorPath = join(workspaceDir, 'src', 'calculator.ts');
       const originalCode = await readFile(calculatorPath, 'utf-8');
 
-      // Replace addition with subtraction to break the add method
       const buggyCode = originalCode.replace(
         'return a + b;',
         'return a - b; // BUG: Should be addition'

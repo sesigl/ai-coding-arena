@@ -32,12 +32,10 @@ export class SimpleCompetitionRunner {
     let workspaceDir: string | undefined;
 
     try {
-      // Create workspace
       workspaceDir = await createWorkspace(
         `competition-${this.competitionId.getValue()}-${provider.name}`
       );
 
-      // Log baseline creation start
       await this.logEvent(
         EventType.BASELINE_CREATION_STARTED,
         Phase.BASELINE,
@@ -47,14 +45,10 @@ export class SimpleCompetitionRunner {
       );
 
       const startTime = Date.now();
-
-      // Run provider baseline creation
       const providerResult = await provider.createBaseline(workspaceDir);
-
       const durationMs = Date.now() - startTime;
       const duration = Duration.fromSeconds(Math.floor(durationMs / 1000));
 
-      // Log baseline creation completion
       await this.logEvent(
         EventType.BASELINE_COMPLETED,
         Phase.BASELINE,
@@ -73,7 +67,6 @@ export class SimpleCompetitionRunner {
 
       return ok(competitionResult);
     } catch (error) {
-      // Log failure
       if (participantId) {
         await this.logEvent(
           EventType.BASELINE_COMPLETED,
@@ -89,7 +82,6 @@ export class SimpleCompetitionRunner {
 
       return err(error instanceof Error ? error : new Error(String(error)));
     } finally {
-      // Clean up workspace
       if (workspaceDir) {
         await cleanupWorkspace(workspaceDir);
       }
@@ -102,7 +94,6 @@ export class SimpleCompetitionRunner {
     let buggyDir: string | undefined;
 
     try {
-      // Phase 1: Create baseline
       baselineDir = await createWorkspace(
         `baseline-${this.competitionId.getValue()}-${provider.name}`
       );
@@ -138,7 +129,6 @@ export class SimpleCompetitionRunner {
         });
       }
 
-      // Phase 2: Bug injection
       buggyDir = await createWorkspace(`buggy-${this.competitionId.getValue()}-${provider.name}`);
 
       await this.logEvent(
@@ -187,7 +177,6 @@ export class SimpleCompetitionRunner {
 
       return err(error instanceof Error ? error : new Error(String(error)));
     } finally {
-      // Clean up workspaces
       if (baselineDir) {
         await cleanupWorkspace(baselineDir);
       }
@@ -206,7 +195,7 @@ export class SimpleCompetitionRunner {
     duration: Duration = Duration.notMeasured()
   ): Promise<void> {
     const event = new CompetitionEvent(
-      new EventId(Date.now() + Math.floor(Math.random() * 1000)), // Simple unique ID
+      this.generateEventId(),
       new Date(),
       this.competitionId,
       RoundId.notApplicable(),
@@ -222,5 +211,9 @@ export class SimpleCompetitionRunner {
     if (result.isErr()) {
       throw new Error(`Failed to log event: ${result.error.message}`);
     }
+  }
+
+  private generateEventId(): EventId {
+    return new EventId(Date.now() + Math.floor(Math.random() * 1000));
   }
 }
