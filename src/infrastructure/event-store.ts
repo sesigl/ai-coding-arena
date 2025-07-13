@@ -5,7 +5,7 @@ import * as duckdb from 'duckdb';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { Result, ok, err } from 'neverthrow';
-import { CompetitionEvent } from 'domain/competition-event';
+import { CompetitionEvent } from 'domain/competition-event/competition-event';
 
 export class EventStore {
   private db: duckdb.Database | undefined;

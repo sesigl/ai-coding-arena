@@ -1,13 +1,13 @@
 // ABOUTME: CompetitionEvent domain entity representing events in the system
 // Rich domain object with behavior and factory methods for data conversion
 
-import { EventId } from 'domain/event-id';
-import { CompetitionId } from 'domain/competition-id';
-import { RoundId } from 'domain/round-id';
-import { ParticipantId } from 'domain/participant-id';
-import { Duration } from 'domain/duration';
-import { EventType } from 'domain/event-type';
-import { Phase } from 'domain/phase';
+import { EventId } from 'domain/competition-event/event-id';
+import { CompetitionId } from 'domain/competition-event/competition-id';
+import { RoundId } from 'domain/competition-event/round-id';
+import { ParticipantId } from 'domain/competition-event/participant-id';
+import { Duration } from 'domain/competition-event/duration';
+import { EventType } from 'domain/competition-event/event-type';
+import { Phase } from 'domain/competition-event/phase';
 
 export class CompetitionEvent {
   constructor(

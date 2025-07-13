@@ -2,11 +2,11 @@
 // Exports core functionality for external use
 
 export { EventStore } from 'infrastructure/event-store';
-export { CompetitionEvent } from 'domain/competition-event';
-export { EventId } from 'domain/event-id';
-export { CompetitionId } from 'domain/competition-id';
-export { RoundId } from 'domain/round-id';
-export { ParticipantId } from 'domain/participant-id';
-export { Duration } from 'domain/duration';
-export { EventType } from 'domain/event-type';
-export { Phase } from 'domain/phase';
+export { CompetitionEvent } from 'domain/competition-event/competition-event';
+export { EventId } from 'domain/competition-event/event-id';
+export { CompetitionId } from 'domain/competition-event/competition-id';
+export { RoundId } from 'domain/competition-event/round-id';
+export { ParticipantId } from 'domain/competition-event/participant-id';
+export { Duration } from 'domain/competition-event/duration';
+export { EventType } from 'domain/competition-event/event-type';
+export { Phase } from 'domain/competition-event/phase';

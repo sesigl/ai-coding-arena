@@ -2,15 +2,15 @@
 // Tests event storage, retrieval, and basic operations with DuckDB
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { EventStore } from 'infrastructure/event-store';
-import { CompetitionEvent } from 'domain/competition-event';
-import { EventId } from 'domain/event-id';
-import { CompetitionId } from 'domain/competition-id';
-import { RoundId } from 'domain/round-id';
-import { ParticipantId } from 'domain/participant-id';
-import { EventType } from 'domain/event-type';
-import { Phase } from 'domain/phase';
-import { Duration } from 'domain/duration';
+import { EventStore } from './event-store';
+import { CompetitionEvent } from 'domain/competition-event/competition-event';
+import { EventId } from 'domain/competition-event/event-id';
+import { CompetitionId } from 'domain/competition-event/competition-id';
+import { RoundId } from 'domain/competition-event/round-id';
+import { ParticipantId } from 'domain/competition-event/participant-id';
+import { EventType } from 'domain/competition-event/event-type';
+import { Phase } from 'domain/competition-event/phase';
+import { Duration } from 'domain/competition-event/duration';
 import { unlink, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 
