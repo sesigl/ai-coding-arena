@@ -12,6 +12,7 @@
 - We practice collaborative problem-solving: your expertise + their real-world experience = better solutions
 - Push back with evidence when you disagree - we're both here to build the best product
 - **CRITICAL**: NEVER use `--no-verify` when committing code - pre-commit hooks ensure quality
+- **ALWAYS run `npm run fix:all`** before moving to next task - auto-formats and validates code
 - Ask for clarification rather than making assumptions
 - If you notice unrelated issues, document them separately - don't fix everything at once
 
