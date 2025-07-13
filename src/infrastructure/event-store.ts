@@ -1,11 +1,11 @@
-// ABOUTME: EventStore implementation for DuckDB event storage
+// ABOUTME: EventStore infrastructure implementation for DuckDB event storage
 // Handles connection management, initialization, and basic CRUD operations
 
 import * as duckdb from 'duckdb';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { Result, ok, err } from 'neverthrow';
-import { CompetitionEvent } from '../types/events';
+import { CompetitionEvent } from 'domain/competition-event';
 
 export class EventStore {
   private db: duckdb.Database | undefined;
@@ -42,17 +42,18 @@ export class EventStore {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
+      const rawData = event.toRawData();
       const params = [
-        event.id,
-        event.timestamp.toISOString(),
-        event.competition_id,
-        typeof event.round_id === 'number' ? event.round_id.toString() : event.round_id,
-        event.participant_id,
-        event.event_type,
-        event.phase,
-        JSON.stringify(event.data),
-        event.success,
-        typeof event.duration_seconds === 'number' ? event.duration_seconds.toString() : event.duration_seconds
+        rawData.id,
+        rawData.timestamp.toISOString(),
+        rawData.competition_id,
+        typeof rawData.round_id === 'number' ? rawData.round_id.toString() : rawData.round_id,
+        rawData.participant_id,
+        rawData.event_type,
+        rawData.phase,
+        JSON.stringify(rawData.data),
+        rawData.success,
+        typeof rawData.duration_seconds === 'number' ? rawData.duration_seconds.toString() : rawData.duration_seconds
       ];
 
       await this.run(query, params);
@@ -71,18 +72,20 @@ export class EventStore {
       const query = 'SELECT * FROM events ORDER BY timestamp ASC';
       const rows = await this.all(query);
       
-      const events: CompetitionEvent[] = rows.map(row => ({
-        id: row.id,
-        timestamp: new Date(row.timestamp),
-        competition_id: row.competition_id,
-        round_id: isNaN(Number(row.round_id)) ? row.round_id as 'NOT_APPLICABLE' : Number(row.round_id),
-        participant_id: row.participant_id,
-        event_type: row.event_type,
-        phase: row.phase,
-        data: JSON.parse(row.data),
-        success: row.success,
-        duration_seconds: isNaN(Number(row.duration_seconds)) ? row.duration_seconds as 'NOT_MEASURED' : Number(row.duration_seconds)
-      }));
+      const events: CompetitionEvent[] = rows.map(row => 
+        CompetitionEvent.fromRawData({
+          id: row.id,
+          timestamp: new Date(row.timestamp),
+          competition_id: row.competition_id,
+          round_id: isNaN(Number(row.round_id)) ? row.round_id as 'NOT_APPLICABLE' : Number(row.round_id),
+          participant_id: row.participant_id,
+          event_type: row.event_type,
+          phase: row.phase,
+          data: JSON.parse(row.data),
+          success: row.success,
+          duration_seconds: isNaN(Number(row.duration_seconds)) ? row.duration_seconds as 'NOT_MEASURED' : Number(row.duration_seconds)
+        })
+      );
 
       return ok(events);
     } catch (error) {

@@ -2,8 +2,15 @@
 // Tests event storage, retrieval, and basic operations with DuckDB
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { EventStore } from '../storage/event-store';
-import { CompetitionEvent } from '../types/events';
+import { EventStore } from 'infrastructure/event-store';
+import { CompetitionEvent } from 'domain/competition-event';
+import { EventId } from 'domain/event-id';
+import { CompetitionId } from 'domain/competition-id';
+import { RoundId } from 'domain/round-id';
+import { ParticipantId } from 'domain/participant-id';
+import { EventType } from 'domain/event-type';
+import { Phase } from 'domain/phase';
+import { Duration } from 'domain/duration';
 import { unlink, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 
@@ -39,18 +46,18 @@ describe('EventStore', () => {
 
   describe('insertEvent', () => {
     it('should insert a basic event successfully', async () => {
-      const event: CompetitionEvent = {
-        id: 1,
-        timestamp: new Date(),
-        competition_id: 'test-comp-1',
-        round_id: 1,
-        participant_id: 'claude-code',
-        event_type: 'competition_started',
-        phase: 'system',
-        data: { message: 'Test competition started' },
-        success: true,
-        duration_seconds: 5
-      };
+      const event = new CompetitionEvent(
+        new EventId(1),
+        new Date(),
+        new CompetitionId('test-comp-1'),
+        RoundId.fromNumber(1),
+        ParticipantId.fromString('claude-code'),
+        EventType.COMPETITION_STARTED,
+        Phase.SYSTEM,
+        { message: 'Test competition started' },
+        true,
+        Duration.fromSeconds(5)
+      );
 
       const result = await eventStore.insertEvent(event);
       if (result.isErr()) {
@@ -60,18 +67,18 @@ describe('EventStore', () => {
     });
 
     it('should handle system events with explicit values', async () => {
-      const event: CompetitionEvent = {
-        id: 2,
-        timestamp: new Date(),
-        competition_id: 'test-comp-2',
-        round_id: 'NOT_APPLICABLE',
-        participant_id: 'SYSTEM',
-        event_type: 'competition_started',
-        phase: 'system',
-        data: { message: 'Test event' },
-        success: true,
-        duration_seconds: 'NOT_MEASURED'
-      };
+      const event = new CompetitionEvent(
+        new EventId(2),
+        new Date(),
+        new CompetitionId('test-comp-2'),
+        RoundId.notApplicable(),
+        ParticipantId.system(),
+        EventType.COMPETITION_STARTED,
+        Phase.SYSTEM,
+        { message: 'Test event' },
+        true,
+        Duration.notMeasured()
+      );
 
       const result = await eventStore.insertEvent(event);
       if (result.isErr()) {
@@ -83,31 +90,31 @@ describe('EventStore', () => {
 
   describe('getEvents', () => {
     beforeEach(async () => {
-      const events: CompetitionEvent[] = [
-        {
-          id: 1,
-          timestamp: new Date(),
-          competition_id: 'comp-1',
-          round_id: 'NOT_APPLICABLE',
-          participant_id: 'SYSTEM',
-          event_type: 'competition_started',
-          phase: 'system',
-          data: { message: 'Competition 1 started' },
-          success: true,
-          duration_seconds: 'NOT_MEASURED'
-        },
-        {
-          id: 2,
-          timestamp: new Date(),
-          competition_id: 'comp-2',
-          round_id: 1,
-          participant_id: 'SYSTEM',
-          event_type: 'round_started',
-          phase: 'system',
-          data: { round: 1 },
-          success: true,
-          duration_seconds: 'NOT_MEASURED'
-        }
+      const events = [
+        new CompetitionEvent(
+          new EventId(1),
+          new Date(),
+          new CompetitionId('comp-1'),
+          RoundId.notApplicable(),
+          ParticipantId.system(),
+          EventType.COMPETITION_STARTED,
+          Phase.SYSTEM,
+          { message: 'Competition 1 started' },
+          true,
+          Duration.notMeasured()
+        ),
+        new CompetitionEvent(
+          new EventId(2),
+          new Date(),
+          new CompetitionId('comp-2'),
+          RoundId.fromNumber(1),
+          ParticipantId.system(),
+          EventType.ROUND_STARTED,
+          Phase.SYSTEM,
+          { round: 1 },
+          true,
+          Duration.notMeasured()
+        )
       ];
 
       for (const event of events) {
@@ -124,8 +131,8 @@ describe('EventStore', () => {
       
       if (result.isOk()) {
         expect(result.value).toHaveLength(2);
-        expect(result.value[0]?.competition_id).toBe('comp-1');
-        expect(result.value[1]?.competition_id).toBe('comp-2');
+        expect(result.value[0]?.getCompetitionId().getValue()).toBe('comp-1');
+        expect(result.value[1]?.getCompetitionId().getValue()).toBe('comp-2');
       }
     });
   });

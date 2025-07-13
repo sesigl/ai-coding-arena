@@ -10,4 +10,6 @@ refactor: extract custom test assertions to reduce duplication and improve reada
 
 refactor: pin all npm dependencies to their exact versions to ensure reproducible builds
 
-refactor: put the duckdb.wal related to tests into a directory called /testdata to avoid confusion with production data, ensure it's not committed to git
+refactor: create independt files that contain 1 class to keep thigns simple. group files together in directory that belong together. do not use index.ts files to export things, instead import them directly from the file they are defined in.
+
+refactor: /types is not a directory that should contain classes. instead maybe thinik about a ddd fitting directory structure like /domain, /application, /infrastructure, /presentation. 
