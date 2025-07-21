@@ -67,7 +67,7 @@ export async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const workspaceDir = args[0];
+  const workspaceDir = args[0] as string;
   await runCompetition(workspaceDir);
 }
 

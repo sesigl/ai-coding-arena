@@ -104,7 +104,7 @@ export class CompetitionEvent {
   }
 
   toRawData(): {
-    id: number;
+    id: string;
     timestamp: Date;
     competition_id: string;
     round_id: number | 'NOT_APPLICABLE';
