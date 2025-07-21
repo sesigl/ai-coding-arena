@@ -8,7 +8,7 @@ import { join, dirname } from 'path';
 export class MockProvider implements LLMProvider {
   readonly name = 'mock-provider';
 
-  async createBaseline(workspaceDir: string): Promise<{ success: boolean; message: string }> {
+  async createCodingExercise(workspaceDir: string): Promise<{ success: boolean; message: string }> {
     try {
       const currentDir = dirname(__filename);
       const templateDir = join(currentDir, 'baseline');
@@ -58,6 +58,38 @@ export class MockProvider implements LLMProvider {
       return {
         success: false,
         message: `Failed to inject bug: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
+  async fixAttempt(
+    buggyDir: string,
+    workspaceDir: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      await cp(buggyDir, workspaceDir, {
+        recursive: true,
+        force: true,
+      });
+
+      const calculatorPath = join(workspaceDir, 'src', 'calculator.ts');
+      const buggyCode = await readFile(calculatorPath, 'utf-8');
+
+      const fixedCode = buggyCode.replace(
+        'return a - b; // BUG: Should be addition',
+        'return a + b;'
+      );
+
+      await writeFile(calculatorPath, fixedCode, 'utf-8');
+
+      return {
+        success: true,
+        message: 'Mock fix applied successfully - calculator now adds correctly',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to fix bug: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }

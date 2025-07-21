@@ -31,9 +31,9 @@ describe('SimpleCompetitionRunner', () => {
     await eventStore.close();
   });
 
-  describe('when running baseline creation', () => {
-    it('should successfully create baseline with mock provider', async () => {
-      const result = await runner.runBaseline(mockProvider);
+  describe('when running a competition', () => {
+    it('should run complete workflow: baseline creation, bug injection, and fix attempt', async () => {
+      const result = await runner.runCompetition(mockProvider);
 
       expect(result.isOk()).toBe(true);
 
@@ -41,68 +41,19 @@ describe('SimpleCompetitionRunner', () => {
         const competitionResult = result.value;
         expect(competitionResult.success).toBe(true);
         expect(competitionResult.participantId).toBe('mock-provider');
-        expect(competitionResult.message).toContain('baseline created');
+        expect(competitionResult.message).toContain('Three-phase workflow completed');
       }
     });
 
-    it('should log events during baseline creation', async () => {
-      await runner.runBaseline(mockProvider);
+    it('should log events for all three phases', async () => {
+      await runner.runCompetition(mockProvider);
 
       const eventsResult = await eventStore.getEventsByCompetition(competitionId);
       expect(eventsResult.isOk()).toBe(true);
 
       if (eventsResult.isOk()) {
         const events = eventsResult.value;
-        expect(events.length).toBeGreaterThanOrEqual(2);
-
-        const startEvent = events.find(e => e.getEventType() === 'baseline_creation_started');
-        expect(startEvent).toBeDefined();
-        expect(startEvent?.isSuccess()).toBe(true);
-
-        const completedEvent = events.find(e => e.getEventType() === 'baseline_completed');
-        expect(completedEvent).toBeDefined();
-        expect(completedEvent?.isSuccess()).toBe(true);
-      }
-    });
-
-    it('should clean up workspace after completion', async () => {
-      const result = await runner.runBaseline(mockProvider);
-
-      expect(result.isOk()).toBe(true);
-
-      if (result.isOk()) {
-        const competitionResult = result.value;
-
-        if (competitionResult.workspaceDir) {
-          expect(existsSync(competitionResult.workspaceDir)).toBe(false);
-        }
-      }
-    });
-  });
-
-  describe('when running two-phase workflow', () => {
-    it('should run baseline creation followed by bug injection', async () => {
-      const result = await runner.runTwoPhase(mockProvider);
-
-      expect(result.isOk()).toBe(true);
-
-      if (result.isOk()) {
-        const competitionResult = result.value;
-        expect(competitionResult.success).toBe(true);
-        expect(competitionResult.participantId).toBe('mock-provider');
-        expect(competitionResult.message).toContain('Two-phase workflow completed');
-      }
-    });
-
-    it('should log events for both phases', async () => {
-      await runner.runTwoPhase(mockProvider);
-
-      const eventsResult = await eventStore.getEventsByCompetition(competitionId);
-      expect(eventsResult.isOk()).toBe(true);
-
-      if (eventsResult.isOk()) {
-        const events = eventsResult.value;
-        expect(events.length).toBeGreaterThanOrEqual(4);
+        expect(events.length).toBeGreaterThanOrEqual(6);
 
         const baselineStartEvent = events.find(
           e => e.getEventType() === 'baseline_creation_started'
@@ -121,6 +72,62 @@ describe('SimpleCompetitionRunner', () => {
           e => e.getEventType() === 'bug_injection_completed'
         );
         expect(bugInjectionCompletedEvent).toBeDefined();
+
+        const fixAttemptStartEvent = events.find(e => e.getEventType() === 'fix_attempt_started');
+        expect(fixAttemptStartEvent).toBeDefined();
+
+        const fixAttemptCompletedEvent = events.find(
+          e => e.getEventType() === 'fix_attempt_completed'
+        );
+        expect(fixAttemptCompletedEvent).toBeDefined();
+      }
+    });
+
+    it('should clean up all workspaces after completion', async () => {
+      const result = await runner.runCompetition(mockProvider);
+
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const competitionResult = result.value;
+
+        if (competitionResult.workspaceDir) {
+          expect(existsSync(competitionResult.workspaceDir)).toBe(false);
+        }
+      }
+    });
+
+    it('should handle baseline creation failure gracefully', async () => {
+      const failingProvider = {
+        name: 'failing-provider',
+        createCodingExercise: async () => ({ success: false, message: 'Baseline failed' }),
+        injectBug: async () => ({ success: true, message: 'Bug injected' }),
+        fixAttempt: async () => ({ success: true, message: 'Fix applied' }),
+      };
+
+      const result = await runner.runCompetition(failingProvider);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.success).toBe(false);
+        expect(result.value.message).toContain('Baseline creation failed');
+      }
+    });
+
+    it('should handle bug injection failure gracefully', async () => {
+      const failingProvider = {
+        name: 'failing-provider',
+        createCodingExercise: async () => ({ success: true, message: 'Baseline created' }),
+        injectBug: async () => ({ success: false, message: 'Bug injection failed' }),
+        fixAttempt: async () => ({ success: true, message: 'Fix applied' }),
+      };
+
+      const result = await runner.runCompetition(failingProvider);
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.success).toBe(false);
+        expect(result.value.message).toContain('Bug injection failed');
       }
     });
   });

@@ -27,20 +27,20 @@ describe('MockProvider', () => {
     });
 
     it('should have createBaseline method', () => {
-      expect(typeof mockProvider.createBaseline).toBe('function');
+      expect(typeof mockProvider.createCodingExercise).toBe('function');
     });
   });
 
   describe('createBaseline', () => {
     it('should return success true with message', async () => {
-      const result = await mockProvider.createBaseline(workspaceDir);
+      const result = await mockProvider.createCodingExercise(workspaceDir);
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('baseline created');
     });
 
     it('should create calculator program file', async () => {
-      await mockProvider.createBaseline(workspaceDir);
+      await mockProvider.createCodingExercise(workspaceDir);
 
       const programFile = join(workspaceDir, 'src', 'calculator.ts');
       expect(existsSync(programFile)).toBe(true);
@@ -50,7 +50,7 @@ describe('MockProvider', () => {
     });
 
     it('should create test file', async () => {
-      await mockProvider.createBaseline(workspaceDir);
+      await mockProvider.createCodingExercise(workspaceDir);
 
       const testFile = join(workspaceDir, 'calculator.test.ts');
       expect(existsSync(testFile)).toBe(true);
@@ -60,7 +60,7 @@ describe('MockProvider', () => {
     });
 
     it('should create complete executable project structure', async () => {
-      await mockProvider.createBaseline(workspaceDir);
+      await mockProvider.createCodingExercise(workspaceDir);
 
       expect(existsSync(join(workspaceDir, 'package.json'))).toBe(true);
       expect(existsSync(join(workspaceDir, 'tsconfig.json'))).toBe(true);
@@ -73,7 +73,7 @@ describe('MockProvider', () => {
 
     beforeEach(async () => {
       baselineDir = await createWorkspace('baseline-test');
-      await mockProvider.createBaseline(baselineDir);
+      await mockProvider.createCodingExercise(baselineDir);
     });
 
     afterEach(async () => {
@@ -109,6 +109,56 @@ describe('MockProvider', () => {
       expect(existsSync(join(buggyDir, 'calculator.test.ts'))).toBe(true);
 
       await cleanupWorkspace(buggyDir);
+    });
+  });
+
+  describe('fixAttempt', () => {
+    let baselineDir: string;
+    let buggyDir: string;
+
+    beforeEach(async () => {
+      baselineDir = await createWorkspace('baseline-test');
+      await mockProvider.createCodingExercise(baselineDir);
+
+      buggyDir = await createWorkspace('buggy-test');
+      await mockProvider.injectBug(baselineDir, buggyDir);
+    });
+
+    afterEach(async () => {
+      await cleanupWorkspace(baselineDir);
+      await cleanupWorkspace(buggyDir);
+    });
+
+    it('should fix bug and restore correct functionality', async () => {
+      const fixDir = await createWorkspace('fix-test');
+
+      const result = await mockProvider.fixAttempt(buggyDir, fixDir);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('fix applied');
+
+      const calculatorFile = join(fixDir, 'src', 'calculator.ts');
+      expect(existsSync(calculatorFile)).toBe(true);
+
+      const content = await readFile(calculatorFile, 'utf-8');
+      expect(content).toContain('Calculator');
+      expect(content).toContain('return a + b;');
+      expect(content).not.toContain('return a - b; // BUG: Should be addition');
+
+      await cleanupWorkspace(fixDir);
+    });
+
+    it('should preserve project structure when fixing bug', async () => {
+      const fixDir = await createWorkspace('fix-structure-test');
+
+      await mockProvider.fixAttempt(buggyDir, fixDir);
+
+      expect(existsSync(join(fixDir, 'package.json'))).toBe(true);
+      expect(existsSync(join(fixDir, 'tsconfig.json'))).toBe(true);
+      expect(existsSync(join(fixDir, 'vitest.config.ts'))).toBe(true);
+      expect(existsSync(join(fixDir, 'calculator.test.ts'))).toBe(true);
+
+      await cleanupWorkspace(fixDir);
     });
   });
 });
