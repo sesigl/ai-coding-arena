@@ -1,5 +1,6 @@
 // ABOUTME: Simple CLI interface for running competitions from the terminal
 // Minimal implementation with basic error handling and progress reporting
+/* eslint-disable no-console */
 
 import { SimpleCompetitionRunner } from 'competition/simple-runner';
 import { EventStore } from 'infrastructure/event-store/event-store';
