@@ -1,5 +1,5 @@
 // ABOUTME: Real integration tests with Claude Code CLI - disabled by default
-// Run with: ENABLE_CLAUDE_INTEGRATION_TESTS=true npm test -- claude-code-provider.integration
+// Run with: npm run test:integration (requires real Claude Code CLI access)
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ClaudeCodeProvider } from './claude-code-provider';

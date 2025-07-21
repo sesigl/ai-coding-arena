@@ -9,6 +9,7 @@
     "test": "CI=true vitest",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
+    "test:integration": "ENABLE_CLAUDE_INTEGRATION_TESTS=true vitest --run src/providers/claude-code-provider/claude-code-provider.integration.test.ts",
     "dev": "tsx src/index.ts",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
