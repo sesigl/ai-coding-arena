@@ -12,7 +12,7 @@ describe('CompetitionEvent', () => {
     it('should return all properties correctly', () => {
       const event = CompetitionEventFactory.create();
 
-      expect(event.getId().getValue()).toBe(1);
+      expect(event.getId().getValue()).toBe('test-id-1');
       expect(event.getTimestamp()).toEqual(new Date('2024-01-01'));
       expect(event.getCompetitionId().getValue()).toBe('comp-1');
       expect(event.getRoundId().getValue()).toBe(1);
@@ -73,7 +73,7 @@ describe('CompetitionEvent', () => {
 
       const event = CompetitionEvent.fromRawData(rawData);
 
-      expect(event.getId().getValue()).toBe(42);
+      expect(event.getId().getValue()).toBe('42');
       expect(event.getRoundId().getValue()).toBe(5);
       expect(event.getParticipantId().getValue()).toBe('test-participant');
       expect(event.getDuration().getValue()).toBe(25);
@@ -99,14 +99,14 @@ describe('CompetitionEvent', () => {
   describe('when converting to raw data', () => {
     it('should preserve all data correctly', () => {
       const event = CompetitionEventFactory.create({
-        id: 99,
+        id: 'test-event-99',
         competitionId: 'test-comp',
         success: false,
       });
 
       const rawData = event.toRawData();
 
-      expect(rawData.id).toBe(99);
+      expect(rawData.id).toBe('test-event-99');
       expect(rawData.competition_id).toBe('test-comp');
       expect(rawData.success).toBe(false);
       expect(rawData.round_id).toBe(1);

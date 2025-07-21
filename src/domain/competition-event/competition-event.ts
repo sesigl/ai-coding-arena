@@ -72,7 +72,7 @@ export class CompetitionEvent {
   }
 
   static fromRawData(data: {
-    id: number;
+    id: number | string;
     timestamp: Date;
     competition_id: string;
     round_id: number | 'NOT_APPLICABLE';
@@ -84,7 +84,7 @@ export class CompetitionEvent {
     duration_seconds: number | 'NOT_MEASURED';
   }): CompetitionEvent {
     return new CompetitionEvent(
-      new EventId(data.id),
+      new EventId(String(data.id)),
       data.timestamp,
       new CompetitionId(data.competition_id),
       typeof data.round_id === 'number'

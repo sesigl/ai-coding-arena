@@ -1,14 +1,20 @@
 // ABOUTME: EventId value object for unique event identification
-// Ensures event IDs are positive numbers with equality checking
+// Uses UUID for guaranteed uniqueness across concurrent operations
+
+import { v4 as uuidv4 } from 'uuid';
 
 export class EventId {
-  constructor(private readonly value: number) {
-    if (value < 0) {
-      throw new Error('EventId must be positive');
+  constructor(private readonly value: string) {
+    if (!value || value.trim().length === 0) {
+      throw new Error('EventId must not be empty');
     }
   }
 
-  getValue(): number {
+  static generate(): EventId {
+    return new EventId(uuidv4());
+  }
+
+  getValue(): string {
     return this.value;
   }
 

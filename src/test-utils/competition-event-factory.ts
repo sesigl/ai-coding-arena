@@ -13,7 +13,7 @@ import { Phase } from 'domain/competition-event/phase';
 export class CompetitionEventFactory {
   static create(
     overrides: Partial<{
-      id: number;
+      id: string;
       timestamp: Date;
       competitionId: string;
       roundId: number;
@@ -26,7 +26,7 @@ export class CompetitionEventFactory {
     }> = {}
   ): CompetitionEvent {
     const defaults = {
-      id: 1,
+      id: 'test-id-1',
       timestamp: new Date('2024-01-01'),
       competitionId: 'comp-1',
       roundId: 1,
@@ -56,7 +56,7 @@ export class CompetitionEventFactory {
 
   static createSystemEvent(): CompetitionEvent {
     return new CompetitionEvent(
-      new EventId(1),
+      new EventId('system-event-1'),
       new Date(),
       new CompetitionId('comp-1'),
       RoundId.notApplicable(),
@@ -71,7 +71,7 @@ export class CompetitionEventFactory {
 
   static createRawData(
     overrides: Partial<{
-      id: number;
+      id: number | string;
       timestamp: Date;
       competition_id: string;
       round_id: number | 'NOT_APPLICABLE';
@@ -84,7 +84,7 @@ export class CompetitionEventFactory {
     }> = {}
   ) {
     const defaults = {
-      id: 1,
+      id: 'raw-event-1',
       timestamp: new Date('2024-01-01'),
       competition_id: 'comp-1',
       round_id: 1,

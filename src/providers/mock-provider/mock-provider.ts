@@ -4,13 +4,14 @@
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { cp, readFile, writeFile } from 'fs/promises';
 import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 export class MockProvider implements LLMProvider {
   readonly name = 'mock-provider';
 
   async createCodingExercise(workspaceDir: string): Promise<{ success: boolean; message: string }> {
     try {
-      const currentDir = dirname(__filename);
+      const currentDir = dirname(fileURLToPath(import.meta.url));
       const templateDir = join(currentDir, 'baseline');
 
       await cp(templateDir, workspaceDir, {

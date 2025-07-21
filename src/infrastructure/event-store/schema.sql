@@ -2,7 +2,7 @@
 -- Creates events table with indexes for efficient querying
 
 CREATE TABLE events (
-  id BIGINT PRIMARY KEY,
+  id TEXT PRIMARY KEY,
   timestamp TIMESTAMP NOT NULL,
   competition_id TEXT NOT NULL,
   round_id TEXT NOT NULL, -- number as string or 'NOT_APPLICABLE'

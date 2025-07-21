@@ -1,9 +1,10 @@
 // ABOUTME: EventStore infrastructure implementation for DuckDB event storage
 // Handles connection management, initialization, and basic CRUD operations
 
-import * as duckdb from 'duckdb';
+import duckdb from 'duckdb';
 import { readFile } from 'fs/promises';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { Result, ok, err } from 'neverthrow';
 import { CompetitionEvent } from 'domain/competition-event/competition-event';
 import { CompetitionId } from 'domain/competition-event/competition-id';
@@ -14,7 +15,7 @@ export class EventStore {
   private rowToCompetitionEvent(row: unknown): CompetitionEvent {
     const r = row as Record<string, unknown>;
     return CompetitionEvent.fromRawData({
-      id: r.id as number,
+      id: r.id as string,
       timestamp: new Date(r.timestamp as string | number),
       competition_id: r.competition_id as string,
       round_id: isNaN(Number(r.round_id)) ? (r.round_id as 'NOT_APPLICABLE') : Number(r.round_id),
@@ -44,7 +45,8 @@ export class EventStore {
     try {
       this.db = new duckdb.Database(this.dbPath);
 
-      const schemaPath = join(__dirname, 'schema.sql');
+      const currentDir = dirname(fileURLToPath(import.meta.url));
+      const schemaPath = join(currentDir, 'schema.sql');
       const schema = await readFile(schemaPath, 'utf-8');
 
       await this.exec(schema);

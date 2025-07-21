@@ -362,7 +362,7 @@ export class SimpleCompetitionRunner {
   }
 
   private generateEventId(): EventId {
-    return new EventId(Date.now() + Math.floor(Math.random() * 1000));
+    return EventId.generate();
   }
 }
 

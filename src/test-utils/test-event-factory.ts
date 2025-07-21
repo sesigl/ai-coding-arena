@@ -13,7 +13,7 @@ import { Duration } from 'domain/competition-event/duration';
 export const TestEventFactory = {
   createBasicEvent(
     overrides: Partial<{
-      id: number;
+      id: string;
       competitionId: string;
       roundId: number | 'NOT_APPLICABLE';
       participantId: string;
@@ -24,7 +24,7 @@ export const TestEventFactory = {
     }> = {}
   ): CompetitionEvent {
     return new CompetitionEvent(
-      new EventId(overrides.id ?? 1),
+      overrides.id ? new EventId(overrides.id) : EventId.generate(),
       new Date(),
       new CompetitionId(overrides.competitionId ?? 'test-comp'),
       overrides.roundId === 'NOT_APPLICABLE'
