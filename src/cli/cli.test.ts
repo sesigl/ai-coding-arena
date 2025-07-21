@@ -20,19 +20,27 @@ describe('CLI', () => {
   });
 
   describe('runCompetition', () => {
-    it('should run a complete competition workflow', async () => {
+    it('should run a complete competition workflow with default provider', async () => {
       await expect(runCompetition(workspaceDir)).resolves.not.toThrow();
 
       expect(consoleSpy).toHaveBeenCalledWith('🏁 Starting AI Coding Arena Competition...');
       expect(consoleSpy).toHaveBeenCalledWith(`📁 Workspace: ${workspaceDir}`);
+      expect(consoleSpy).toHaveBeenCalledWith('🤖 Provider: mock-provider');
       expect(consoleSpy).toHaveBeenCalledWith('✅ Competition completed successfully!');
+    });
+
+    it('should run competition with specified provider', async () => {
+      await expect(runCompetition(workspaceDir, 'mock-provider')).resolves.not.toThrow();
+
+      expect(consoleSpy).toHaveBeenCalledWith('🤖 Provider: mock-provider');
+      expect(consoleSpy).toHaveBeenCalledWith('🚀 Running competition with mock-provider...');
     });
 
     it('should display progress messages during execution', async () => {
       await runCompetition(workspaceDir);
 
       expect(consoleSpy).toHaveBeenCalledWith('🔧 Initializing event store...');
-      expect(consoleSpy).toHaveBeenCalledWith('🤖 Running competition with mock-provider...');
+      expect(consoleSpy).toHaveBeenCalledWith('🚀 Running competition with mock-provider...');
       expect(consoleSpy).toHaveBeenCalledWith('🧹 Cleaning up...');
     });
 
@@ -43,6 +51,26 @@ describe('CLI', () => {
         expect.stringMatching(/📝 Result: .*Three-phase workflow completed.*/)
       );
       expect(consoleSpy).toHaveBeenCalledWith('👤 Participant: mock-provider');
+    });
+
+    it('should handle unknown provider error', async () => {
+      // Mock process.exit to prevent test termination
+      const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      try {
+        await runCompetition(workspaceDir, 'unknown-provider');
+      } catch {
+        // Expected to throw due to unknown provider
+      }
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '💥 Unexpected error:',
+        'Unknown provider: unknown-provider. Available providers: mock-provider, claude-code'
+      );
+
+      mockExit.mockRestore();
+      consoleSpy.mockRestore();
     });
   });
 

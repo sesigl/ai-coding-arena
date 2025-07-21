@@ -22,6 +22,7 @@ export default [
         console: 'readonly',
         process: 'readonly',
         Buffer: 'readonly',
+        AbortController: 'readonly',
       },
     },
     plugins: {

@@ -5,13 +5,34 @@
 import { SimpleCompetitionRunner } from 'competition/simple-runner';
 import { EventStore } from 'infrastructure/event-store/event-store';
 import { MockProvider } from 'providers/mock-provider/mock-provider';
+import { ClaudeCodeProvider } from 'providers/claude-code-provider/claude-code-provider';
+import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { CompetitionId } from 'domain/competition-event/competition-id';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
-export async function runCompetition(workspaceDir: string): Promise<void> {
+function createProvider(providerName: string): LLMProvider {
+  switch (providerName) {
+    case 'mock-provider':
+    case 'mock':
+      return new MockProvider();
+    case 'claude-code':
+    case 'claude':
+      return new ClaudeCodeProvider();
+    default:
+      throw new Error(
+        `Unknown provider: ${providerName}. Available providers: mock-provider, claude-code`
+      );
+  }
+}
+
+export async function runCompetition(
+  workspaceDir: string,
+  providerName = 'mock-provider'
+): Promise<void> {
   console.log('🏁 Starting AI Coding Arena Competition...');
   console.log(`📁 Workspace: ${workspaceDir}`);
+  console.log(`🤖 Provider: ${providerName}`);
 
   const dbPath = join(tmpdir(), `competition-${Date.now()}.db`);
   const eventStore = new EventStore(dbPath);
@@ -26,9 +47,9 @@ export async function runCompetition(workspaceDir: string): Promise<void> {
 
     const competitionId = new CompetitionId(`comp-${Date.now()}`);
     const runner = new SimpleCompetitionRunner(eventStore, competitionId);
-    const provider = new MockProvider();
+    const provider = createProvider(providerName);
 
-    console.log(`🤖 Running competition with ${provider.name}...`);
+    console.log(`🚀 Running competition with ${provider.name}...`);
 
     const result = await runner.runCompetition(provider);
 
@@ -62,14 +83,19 @@ export async function runCompetition(workspaceDir: string): Promise<void> {
 export async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
-  if (args.length !== 1) {
-    console.error('Usage: npm run cli <workspace-dir>');
-    console.error('Example: npm run cli ./my-workspace');
+  if (args.length < 1 || args.length > 2) {
+    console.error('Usage: npm run cli <workspace-dir> [provider]');
+    console.error('Providers: mock-provider (default), claude-code');
+    console.error('Examples:');
+    console.error('  npm run cli ./my-workspace');
+    console.error('  npm run cli ./my-workspace mock-provider');
+    console.error('  npm run cli ./my-workspace claude-code');
     process.exit(1);
   }
 
   const workspaceDir = args[0] as string;
-  await runCompetition(workspaceDir);
+  const providerName = args[1] || 'mock-provider';
+  await runCompetition(workspaceDir, providerName);
 }
 
 // Run if called directly
