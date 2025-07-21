@@ -13,6 +13,7 @@
 - Push back with evidence when you disagree - we're both here to build the best product
 - **CRITICAL**: NEVER use `--no-verify` when committing code - pre-commit hooks ensure quality
 - **ALWAYS run `npm run fix:all`** before moving to next task - auto-formats and validates code
+- **Keep commits simple and clear** - use conventional commit format without boilerplate. Example: "feat: implement three-phase competition workflow with bug injection and fix attempt" NOT "🤖 Generated with Claude Code..."
 - Ask for clarification rather than making assumptions
 - If you notice unrelated issues, document them separately - don't fix everything at once
 
