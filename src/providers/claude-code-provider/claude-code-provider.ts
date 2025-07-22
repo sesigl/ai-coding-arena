@@ -10,28 +10,47 @@ export class ClaudeCodeProvider implements LLMProvider {
   readonly name = 'claude-code';
 
   async createCodingExercise(workspaceDir: string): Promise<{ success: boolean; message: string }> {
-    const prompt = `Create a complete TypeScript project with the following requirements:
+    const prompt = `I need you to create a complete TypeScript calculator project. Please create ALL files immediately without asking for permission.
 
-1. **Create these files:**
-   - package.json with necessary dependencies (typescript, vitest, @types/node)
-   - tsconfig.json with strict TypeScript configuration
-   - src/calculator.ts with a Calculator class containing methods: add, subtract, multiply, divide
-   - src/calculator.test.ts with comprehensive tests for all methods
-   - vitest.config.ts for test configuration
+**REQUIRED FILES TO CREATE:**
 
-2. **Project must be fully functional:**
-   - All files must be created and properly configured
-   - Tests must pass when running "npm test"
-   - Include edge case tests (division by zero, negative numbers, etc.)
+1. **package.json:**
+\`\`\`json
+{
+  "name": "calculator-project",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "vitest",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0",
+    "@types/node": "^20.0.0"
+  }
+}
+\`\`\`
 
-3. **Make it robust:**
-   - Well-tested with comprehensive test coverage
-   - Proper error handling
-   - TypeScript strict mode enabled
+2. **tsconfig.json:**
+\`\`\`json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "strict": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  }
+}
+\`\`\`
 
-This is for a coding competition where other AIs will try to inject bugs. Make your tests thorough to catch potential issues.
+3. **src/calculator.ts:** Calculator class with add, subtract, multiply, divide methods
+4. **src/calculator.test.ts:** Comprehensive tests for all methods  
+5. **vitest.config.ts:** Test configuration
 
-Create all necessary files now.`;
+**ACTION REQUIRED:** Use the Write tool to create each file. Do not ask for permission - just create them now. Make the calculator robust with proper error handling and comprehensive tests.`;
 
     return this.executeQuery(workspaceDir, prompt, 'baseline creation');
   }
@@ -131,6 +150,9 @@ Fix the bug now and verify all tests pass.`;
           options: {
             maxTurns: 15, // Allow more turns for deep analysis
             cwd: workspaceDir,
+            // Grant all necessary permissions for file creation and testing
+            allowedTools: ['Read', 'Write', 'Bash', 'Edit', 'Glob', 'LS'],
+            disallowedTools: [], // Allow all tools for automation
           },
         })) {
           messages.push(message);
