@@ -23,7 +23,12 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
       try {
         const result = await provider.createCodingExercise(workspaceDir);
 
-        expect(result.success).toBe(true);
+        // Log result for debugging
+        console.log('Baseline creation result:', result);
+
+        if (!result.success) {
+          throw new Error(`Baseline creation failed: ${result.message}`);
+        }
 
         // Verify essential files exist
         await access(join(workspaceDir, 'package.json'));
@@ -54,11 +59,19 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
       try {
         // First create baseline
         const baselineResult = await provider.createCodingExercise(baselineDir);
-        expect(baselineResult.success).toBe(true);
+        console.log('Bug test baseline creation result:', baselineResult);
+
+        if (!baselineResult.success) {
+          throw new Error(`Baseline creation failed: ${baselineResult.message}`);
+        }
 
         // Then inject bug
         const bugResult = await provider.injectBug(baselineDir, bugWorkspace);
-        expect(bugResult.success).toBe(true);
+        console.log('Bug injection result:', bugResult);
+
+        if (!bugResult.success) {
+          throw new Error(`Bug injection failed: ${bugResult.message}`);
+        }
 
         // Verify files were copied
         await access(join(bugWorkspace, 'package.json'));

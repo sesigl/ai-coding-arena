@@ -10,23 +10,28 @@ export class ClaudeCodeProvider implements LLMProvider {
   readonly name = 'claude-code';
 
   async createCodingExercise(workspaceDir: string): Promise<{ success: boolean; message: string }> {
-    const prompt = `You are participating in an LLM coding competition. Your goal is to create a robust, well-tested codebase that other AI models will try to break by injecting bugs.
+    const prompt = `Create a complete TypeScript project with the following requirements:
 
-Create a TypeScript project that will serve as the foundation for this competition. The project should be:
+1. **Create these files:**
+   - package.json with necessary dependencies (typescript, vitest, @types/node)
+   - tsconfig.json with strict TypeScript configuration
+   - src/calculator.ts with a Calculator class containing methods: add, subtract, multiply, divide
+   - src/calculator.test.ts with comprehensive tests for all methods
+   - vitest.config.ts for test configuration
 
-1. **Non-trivial but focused** - Complex enough to hide subtle bugs, simple enough to understand quickly
-2. **Thoroughly tested** - Every function should have comprehensive tests that would catch various types of bugs
-3. **CLI runnable** - Must have a test suite that can be run from command line to verify functionality
+2. **Project must be fully functional:**
+   - All files must be created and properly configured
+   - Tests must pass when running "npm test"
+   - Include edge case tests (division by zero, negative numbers, etc.)
 
-Think strategically: What kind of code would be challenging for another AI to break in subtle ways? What edge cases should your tests cover to make bug injection difficult?
+3. **Make it robust:**
+   - Well-tested with comprehensive test coverage
+   - Proper error handling
+   - TypeScript strict mode enabled
 
-Requirements:
-- Complete TypeScript project with package.json, tsconfig.json, test configuration
-- Runnable test suite (npm test should work)
-- Well-structured code that's neither too simple nor too complex
-- Comprehensive tests that would catch both obvious and subtle bugs
+This is for a coding competition where other AIs will try to inject bugs. Make your tests thorough to catch potential issues.
 
-Make your code defensible. Other models will try to break it - make that challenging for them.`;
+Create all necessary files now.`;
 
     return this.executeQuery(workspaceDir, prompt, 'baseline creation');
   }
@@ -44,23 +49,26 @@ Make your code defensible. Other models will try to break it - make that challen
       };
     }
 
-    const prompt = `You are in a coding competition. Another AI created this codebase with tests, and your job is to inject a bug that's challenging to find and fix.
+    const prompt = `You need to inject a subtle bug into this calculator project that will cause tests to fail.
 
-Your goal: **Create a subtle, realistic bug that breaks tests but isn't immediately obvious.**
+**Your task:**
+1. Examine the existing code and tests
+2. Introduce ONE realistic bug that breaks at least one test
+3. Run the tests to verify they fail after your change
+4. The bug should be subtle but realistic (like an off-by-one error, wrong operator, boundary condition issue)
 
-Strategy considerations:
-- **Avoid trivial bugs** (like changing + to -) that are too easy to spot
-- **Think like a real developer** - What mistakes do humans actually make?
-- **Consider edge cases** - Off-by-one errors, boundary conditions, async issues, type coercion
-- **Make it realistic** - The bug should look like something that could slip through code review
+**Examples of good bugs:**
+- Change multiplication to use addition in a loop
+- Introduce precision errors in division
+- Handle edge cases incorrectly (like division by zero)
+- Swap greater-than/less-than comparisons
 
-Rules:
-1. The bug must cause at least one test to fail
-2. The bug should not be immediately obvious from the test failure message
-3. Run tests after your change to confirm they fail
-4. The bug should represent a real coding mistake, not a random change
+**Requirements:**
+- Tests must fail after the bug injection
+- The bug should look like a real programming mistake
+- Don't make it too obvious - it should require some analysis to find
 
-Remember: Another AI (possibly yourself) will try to fix this. Make it intellectually challenging but fair.`;
+Inject the bug now and run tests to confirm they fail.`;
 
     return this.executeQuery(workspaceDir, prompt, 'bug injection');
   }
@@ -78,25 +86,27 @@ Remember: Another AI (possibly yourself) will try to fix this. Make it intellect
       };
     }
 
-    const prompt = `You are in a coding competition. Another AI injected a bug into this codebase, and your job is to find and fix it.
+    const prompt = `You need to find and fix the bug in this calculator project to make all tests pass.
 
-Your challenge: **Analyze failing tests, identify the root cause, and implement the correct fix.**
+**Your task:**
+1. Run the tests first to see what's failing
+2. Examine the test failures to understand what's wrong
+3. Look at the calculator code to find the bug
+4. Fix the bug in the source code
+5. Run the tests again to confirm they all pass
 
-Approach this systematically:
-1. **Run the tests** - Understand what's failing and why
-2. **Analyze the failures** - Don't just fix symptoms, find the root cause
-3. **Think deeply** - The bug was designed to be subtle, so surface-level fixes might miss the real issue
-4. **Verify your fix** - Ensure all tests pass and you haven't introduced new issues
+**Debugging approach:**
+- Check the test output carefully - what's the expected vs actual result?
+- Look at the calculator methods - which one is causing the failure?
+- Compare the failing method with the test expectations
+- Make the minimal fix needed to restore correct behavior
 
-The bug was created by an AI trying to be clever and subtle. Use your analytical skills to:
-- Trace through the failing test cases
-- Understand the intended vs actual behavior  
-- Identify where the logic breaks down
-- Implement a robust fix
+**Requirements:**
+- All tests must pass after your fix
+- Don't change the tests, only fix the source code
+- Make sure your fix handles all the edge cases the tests cover
 
-Remember: This is a competition. The AI that created the bug tried to make it challenging. Rise to that challenge with thoughtful debugging and precise fixes.
-
-Run tests both before and after your fix to prove success.`;
+Fix the bug now and verify all tests pass.`;
 
     return this.executeQuery(workspaceDir, prompt, 'fix attempt');
   }
@@ -134,7 +144,10 @@ Run tests both before and after your fix to prove success.`;
           success,
           message: success
             ? `Claude Code ${phase} completed successfully`
-            : `Claude Code ${phase} completed but may have issues`,
+            : `Claude Code ${phase} completed but may have issues. Messages: ${messages
+                .slice(-2)
+                .map(m => JSON.stringify(m))
+                .join(', ')}`,
         };
       } catch (error) {
         clearTimeout(timeout);
@@ -157,35 +170,37 @@ Run tests both before and after your fix to prove success.`;
   }
 
   private determineSuccess(messages: SDKMessage[], phase: string): boolean {
-    const lastMessages = messages.slice(-5); // Check more messages for complex operations
-    const messageText = lastMessages
+    // More conservative success detection - require substantial evidence
+    const allMessages = messages
       .map(msg => JSON.stringify(msg))
       .join(' ')
       .toLowerCase();
 
     switch (phase) {
       case 'baseline creation':
+        // Look for strong indicators of file creation
         return (
-          messageText.includes('test') &&
-          (messageText.includes('pass') ||
-            messageText.includes('success') ||
-            messageText.includes('complete'))
+          allMessages.includes('package.json') &&
+          allMessages.includes('created') &&
+          (allMessages.includes('test') || allMessages.includes('vitest'))
         );
 
       case 'bug injection':
+        // Look for explicit test failure mentions
         return (
-          messageText.includes('test') &&
-          (messageText.includes('fail') ||
-            messageText.includes('error') ||
-            messageText.includes('failing'))
+          allMessages.includes('test') &&
+          (allMessages.includes('fail') ||
+            allMessages.includes('failing') ||
+            allMessages.includes('broken'))
         );
 
       case 'fix attempt':
+        // Look for test restoration
         return (
-          messageText.includes('test') &&
-          (messageText.includes('pass') ||
-            messageText.includes('success') ||
-            messageText.includes('fixed'))
+          allMessages.includes('test') &&
+          (allMessages.includes('pass') ||
+            allMessages.includes('passing') ||
+            allMessages.includes('fixed'))
         );
 
       default:
