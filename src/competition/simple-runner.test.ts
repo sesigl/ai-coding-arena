@@ -300,4 +300,129 @@ describe('SimpleCompetitionRunner', () => {
       expect(participantStats?.phases.fixAttempt).toBe(null); // Not attempted
     });
   });
+
+  describe('when running multi-participant competitions', () => {
+    it('should run multiple participants sequentially and track results per participant', async () => {
+      const mockProvider1 = new MockProvider();
+      const mockProvider2 = {
+        name: 'mock-provider-2',
+        createCodingExercise: async () => ({ success: true, message: 'Baseline created' }),
+        injectBug: async () => ({ success: true, message: 'Bug injected' }),
+        fixAttempt: async () => ({ success: true, message: 'Fix applied' }),
+      };
+
+      const competitionId = new CompetitionId(`multi-test-${Date.now()}`);
+      const runner = new SimpleCompetitionRunner(eventStore, competitionId);
+
+      const result = await runner.runMultiParticipantCompetition([mockProvider1, mockProvider2]);
+
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const multiResult = result.value;
+        expect(multiResult.overallSuccess).toBe(true);
+        expect(multiResult.participantResults).toHaveLength(2);
+
+        // Check first participant
+        const result1 = multiResult.participantResults[0];
+        expect(result1).toBeDefined();
+        expect(result1?.participantId).toBe('mock-provider');
+        expect(result1?.success).toBe(true);
+
+        // Check second participant
+        const result2 = multiResult.participantResults[1];
+        expect(result2).toBeDefined();
+        expect(result2?.participantId).toBe('mock-provider-2');
+        expect(result2?.success).toBe(true);
+
+        expect(multiResult.summary).toContain('2/2 participants succeeded');
+        expect(multiResult.summary).toContain('Overall result: SUCCESS');
+      }
+    });
+
+    it('should handle participant failures gracefully and continue with remaining participants', async () => {
+      const successfulProvider = new MockProvider();
+      const failingProvider = {
+        name: 'failing-provider',
+        createCodingExercise: async () => ({ success: false, message: 'Baseline failed' }),
+        injectBug: async () => ({ success: true, message: 'Bug injected' }),
+        fixAttempt: async () => ({ success: true, message: 'Fix applied' }),
+      };
+
+      const competitionId = new CompetitionId(`multi-failure-test-${Date.now()}`);
+      const runner = new SimpleCompetitionRunner(eventStore, competitionId);
+
+      const result = await runner.runMultiParticipantCompetition([
+        successfulProvider,
+        failingProvider,
+      ]);
+
+      expect(result.isOk()).toBe(true);
+
+      if (result.isOk()) {
+        const multiResult = result.value;
+        expect(multiResult.overallSuccess).toBe(false);
+        expect(multiResult.participantResults).toHaveLength(2);
+
+        // Check successful participant
+        const successResult = multiResult.participantResults.find(
+          r => r.participantId === 'mock-provider'
+        );
+        expect(successResult?.success).toBe(true);
+
+        // Check failed participant
+        const failureResult = multiResult.participantResults.find(
+          r => r.participantId === 'failing-provider'
+        );
+        expect(failureResult?.success).toBe(false);
+        expect(failureResult?.message).toContain('Baseline failed');
+
+        expect(multiResult.summary).toContain('1/2 participants succeeded');
+        expect(multiResult.summary).toContain('Overall result: FAILED');
+      }
+    });
+
+    it('should reject empty provider list', async () => {
+      const competitionId = new CompetitionId(`empty-test-${Date.now()}`);
+      const runner = new SimpleCompetitionRunner(eventStore, competitionId);
+
+      const result = await runner.runMultiParticipantCompetition([]);
+
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toContain(
+        'At least one provider must be specified'
+      );
+    });
+
+    it('should log system events for competition start and completion', async () => {
+      const mockProvider1 = new MockProvider();
+      const mockProvider2 = {
+        name: 'mock-provider-2',
+        createCodingExercise: async () => ({ success: true, message: 'Baseline created' }),
+        injectBug: async () => ({ success: true, message: 'Bug injected' }),
+        fixAttempt: async () => ({ success: true, message: 'Fix applied' }),
+      };
+
+      const competitionId = new CompetitionId(`system-events-test-${Date.now()}`);
+      const runner = new SimpleCompetitionRunner(eventStore, competitionId);
+
+      await runner.runMultiParticipantCompetition([mockProvider1, mockProvider2]);
+
+      const eventsResult = await eventStore.getEventsByCompetition(competitionId);
+      expect(eventsResult.isOk()).toBe(true);
+
+      const events = eventsResult._unsafeUnwrap();
+
+      // Check for system events
+      const competitionStartEvent = events.find(
+        e => e.getEventType() === 'competition_started' && e.getParticipantId().isSystem()
+      );
+      expect(competitionStartEvent).toBeDefined();
+
+      const competitionCompletedEvent = events.find(
+        e => e.getEventType() === 'competition_completed' && e.getParticipantId().isSystem()
+      );
+      expect(competitionCompletedEvent).toBeDefined();
+    });
+  });
 });

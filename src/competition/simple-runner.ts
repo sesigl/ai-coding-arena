@@ -21,6 +21,12 @@ export interface CompetitionResult {
   readonly workspaceDir?: string;
 }
 
+export interface MultiParticipantCompetitionResult {
+  readonly overallSuccess: boolean;
+  readonly participantResults: CompetitionResult[];
+  readonly summary: string;
+}
+
 export class SimpleCompetitionRunner {
   constructor(
     private readonly eventStore: EventStore,
@@ -198,6 +204,74 @@ export class SimpleCompetitionRunner {
     }
   }
 
+  async runMultiParticipantCompetition(
+    providers: LLMProvider[]
+  ): Promise<Result<MultiParticipantCompetitionResult, Error>> {
+    if (providers.length === 0) {
+      return err(new Error('At least one provider must be specified'));
+    }
+
+    const participantResults: CompetitionResult[] = [];
+    let overallSuccess = true;
+
+    try {
+      // Log competition start
+      await this.logSystemEvent(EventType.COMPETITION_STARTED, Phase.BASELINE, {
+        participantCount: providers.length,
+        providers: providers.map(p => p.name),
+      });
+
+      // Run each participant sequentially through all phases
+      for (const provider of providers) {
+        try {
+          const participantResult = await this.runCompetition(provider);
+
+          if (participantResult.isOk()) {
+            participantResults.push(participantResult.value);
+            if (!participantResult.value.success) {
+              overallSuccess = false;
+            }
+          } else {
+            // Handle individual participant failure gracefully
+            const failedResult: CompetitionResult = {
+              success: false,
+              message: `Competition failed: ${participantResult.error.message}`,
+              participantId: provider.name,
+            };
+            participantResults.push(failedResult);
+            overallSuccess = false;
+          }
+        } catch (error) {
+          // Handle unexpected errors for individual participant
+          const errorResult: CompetitionResult = {
+            success: false,
+            message: `Unexpected error: ${error instanceof Error ? error.message : String(error)}`,
+            participantId: provider.name,
+          };
+          participantResults.push(errorResult);
+          overallSuccess = false;
+        }
+      }
+
+      // Log competition completion
+      await this.logSystemEvent(EventType.COMPETITION_COMPLETED, Phase.FIX_ATTEMPT, {
+        participantCount: providers.length,
+        successfulParticipants: participantResults.filter(r => r.success).length,
+        overallSuccess,
+      });
+
+      const summary = this.createSummary(participantResults, overallSuccess);
+
+      return ok({
+        overallSuccess,
+        participantResults,
+        summary,
+      });
+    } catch (error) {
+      return err(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
   async runCompetition(provider: LLMProvider): Promise<Result<CompetitionResult, Error>> {
     const participantId = ParticipantId.fromString(provider.name);
     let baselineDir: string | undefined;
@@ -363,6 +437,50 @@ export class SimpleCompetitionRunner {
 
   private generateEventId(): EventId {
     return EventId.generate();
+  }
+
+  private async logSystemEvent(
+    eventType: EventType,
+    phase: Phase,
+    data: Record<string, unknown>
+  ): Promise<void> {
+    const event = new CompetitionEvent(
+      this.generateEventId(),
+      new Date(),
+      this.competitionId,
+      RoundId.notApplicable(),
+      ParticipantId.system(), // System participant for competition-level events
+      eventType,
+      phase,
+      data,
+      true, // System events are always "successful"
+      Duration.notMeasured()
+    );
+
+    const result = await this.eventStore.insertEvent(event);
+    if (result.isErr()) {
+      throw new Error(`Failed to log system event: ${result.error.message}`);
+    }
+  }
+
+  private createSummary(participantResults: CompetitionResult[], overallSuccess: boolean): string {
+    const totalParticipants = participantResults.length;
+    const successfulParticipants = participantResults.filter(r => r.success).length;
+    const failedParticipants = totalParticipants - successfulParticipants;
+
+    const successRate =
+      totalParticipants > 0 ? (successfulParticipants / totalParticipants) * 100 : 0;
+
+    let summary = `Multi-participant competition completed. `;
+    summary += `${successfulParticipants}/${totalParticipants} participants succeeded (${successRate.toFixed(1)}%). `;
+
+    if (overallSuccess) {
+      summary += 'Overall result: SUCCESS';
+    } else {
+      summary += `Overall result: FAILED (${failedParticipants} participant(s) failed)`;
+    }
+
+    return summary;
   }
 }
 

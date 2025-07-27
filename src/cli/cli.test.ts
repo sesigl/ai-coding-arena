@@ -25,22 +25,26 @@ describe('CLI', () => {
 
       expect(consoleSpy).toHaveBeenCalledWith('🏁 Starting AI Coding Arena Competition...');
       expect(consoleSpy).toHaveBeenCalledWith(`📁 Workspace: ${workspaceDir}`);
-      expect(consoleSpy).toHaveBeenCalledWith('🤖 Provider: mock-provider');
+      expect(consoleSpy).toHaveBeenCalledWith('🤖 Providers: mock-provider');
       expect(consoleSpy).toHaveBeenCalledWith('✅ Competition completed successfully!');
     });
 
     it('should run competition with specified provider', async () => {
-      await expect(runCompetition(workspaceDir, 'mock-provider')).resolves.not.toThrow();
+      await expect(runCompetition(workspaceDir, ['mock-provider'])).resolves.not.toThrow();
 
-      expect(consoleSpy).toHaveBeenCalledWith('🤖 Provider: mock-provider');
-      expect(consoleSpy).toHaveBeenCalledWith('🚀 Running competition with mock-provider...');
+      expect(consoleSpy).toHaveBeenCalledWith('🤖 Providers: mock-provider');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '🚀 Running single-participant competition with mock-provider...'
+      );
     });
 
     it('should display progress messages during execution', async () => {
       await runCompetition(workspaceDir);
 
       expect(consoleSpy).toHaveBeenCalledWith('🔧 Initializing event store...');
-      expect(consoleSpy).toHaveBeenCalledWith('🚀 Running competition with mock-provider...');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '🚀 Running single-participant competition with mock-provider...'
+      );
       expect(consoleSpy).toHaveBeenCalledWith('🧹 Cleaning up...');
     });
 
@@ -59,7 +63,7 @@ describe('CLI', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       try {
-        await runCompetition(workspaceDir, 'unknown-provider');
+        await runCompetition(workspaceDir, ['unknown-provider']);
       } catch {
         // Expected to throw due to unknown provider
       }
@@ -71,6 +75,20 @@ describe('CLI', () => {
 
       mockExit.mockRestore();
       consoleSpy.mockRestore();
+    });
+
+    it('should run multi-participant competition with multiple providers', async () => {
+      await expect(
+        runCompetition(workspaceDir, ['mock-provider', 'mock-provider'])
+      ).resolves.not.toThrow();
+
+      expect(consoleSpy).toHaveBeenCalledWith('🤖 Providers: mock-provider, mock-provider');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '🚀 Running multi-participant competition with 2 providers...'
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '✅ Multi-participant competition completed successfully!'
+      );
     });
   });
 
