@@ -17,173 +17,78 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
     provider = new ClaudeCodeProvider();
   });
 
-  describe('full competition workflow with real Claude Code', () => {
-    it('should create a complete, testable baseline project', async () => {
-      DebugLogger.logPhaseStart('TEST_BASELINE', 'Integration test: baseline creation');
-      const workspaceDir = await createWorkspace('integration-baseline');
+  describe('complete competition workflow', () => {
+    it('should run full baseline → bug injection → fix cycle successfully', async () => {
+      DebugLogger.logPhaseStart('INTEGRATION_TEST', 'Running complete competition workflow');
+
+      const baselineDir = await createWorkspace('integration-baseline');
+      const buggyDir = await createWorkspace('integration-buggy');
+      const fixDir = await createWorkspace('integration-fix');
 
       try {
-        const result = await provider.createCodingExercise(workspaceDir);
+        // PHASE 1: Create baseline project
+        DebugLogger.logPhaseStart('BASELINE_CREATION', 'Creating baseline calculator project');
+        const baselineResult = await provider.createCodingExercise(baselineDir);
 
-        DebugLogger.logProgress('TEST_BASELINE', 'Claude Code execution completed', result);
+        expect(baselineResult.success).toBe(true);
+        expect(baselineResult.message).toContain('completed successfully');
 
-        if (!result.success) {
-          throw new Error(`Baseline creation failed: ${result.message}`);
-        }
+        // Verify baseline structure
+        await access(join(baselineDir, 'package.json'));
+        await access(join(baselineDir, 'tsconfig.json'));
+        await access(join(baselineDir, 'src', 'calculator.ts'));
+        await access(join(baselineDir, 'src', 'calculator.test.ts'));
 
-        // Verify essential files exist
-        await access(join(workspaceDir, 'package.json'));
-        await access(join(workspaceDir, 'tsconfig.json'));
-
-        // Verify source files exist
-        const srcFiles = await Promise.allSettled([
-          access(join(workspaceDir, 'src')),
-          access(join(workspaceDir, 'src', 'calculator.ts')),
-          access(join(workspaceDir, 'src', 'calculator.test.ts')),
-        ]);
-
-        expect(srcFiles.every(f => f.status === 'fulfilled')).toBe(true);
-
-        // Verify package.json has necessary dependencies
-        const packageJson = JSON.parse(await readFile(join(workspaceDir, 'package.json'), 'utf-8'));
+        const packageJson = JSON.parse(await readFile(join(baselineDir, 'package.json'), 'utf-8'));
         expect(packageJson.devDependencies).toHaveProperty('vitest');
         expect(packageJson.devDependencies).toHaveProperty('typescript');
 
-        DebugLogger.logPhaseEnd('TEST_BASELINE', true, 'Baseline creation test passed');
-      } finally {
-        await cleanupWorkspace(workspaceDir);
-      }
-    }, 300000); // 5 minute timeout for real Claude Code
-
-    it('should inject a realistic bug that breaks tests', async () => {
-      DebugLogger.logPhaseStart('TEST_BUG_INJECTION', 'Integration test: bug injection workflow');
-      const baselineDir = await createWorkspace('integration-baseline-for-bug');
-      const bugWorkspace = await createWorkspace('integration-bug');
-
-      try {
-        // First create baseline
-        DebugLogger.logProgress('TEST_BUG_INJECTION', 'Creating baseline for bug injection test');
-        const baselineResult = await provider.createCodingExercise(baselineDir);
-        DebugLogger.logProgress(
-          'TEST_BUG_INJECTION',
-          'Baseline creation completed',
-          baselineResult
-        );
-
-        if (!baselineResult.success) {
-          throw new Error(`Baseline creation failed: ${baselineResult.message}`);
-        }
-
-        // Then inject bug
-        DebugLogger.logProgress('TEST_BUG_INJECTION', 'Starting bug injection');
-        const bugResult = await provider.injectBug(baselineDir, bugWorkspace);
-        DebugLogger.logProgress('TEST_BUG_INJECTION', 'Bug injection completed', bugResult);
-
-        if (!bugResult.success) {
-          throw new Error(`Bug injection failed: ${bugResult.message}`);
-        }
-
-        // Verify files were copied
-        await access(join(bugWorkspace, 'package.json'));
-        await access(join(bugWorkspace, 'src'));
-
-        // The bug injection should have modified source files
-        const sourceFiles = [
-          join(bugWorkspace, 'src', 'calculator.ts'),
-          join(bugWorkspace, 'src', 'calculator.test.ts'),
-        ];
-
-        for (const file of sourceFiles) {
-          try {
-            await access(file);
-            const content = await readFile(file, 'utf-8');
-            expect(content.length).toBeGreaterThan(0);
-          } catch {
-            // File might not exist depending on Claude's implementation choice
-          }
-        }
-
-        DebugLogger.logPhaseEnd('TEST_BUG_INJECTION', true, 'Bug injection test passed');
-      } finally {
-        await cleanupWorkspace(baselineDir);
-        await cleanupWorkspace(bugWorkspace);
-      }
-    }, 300000);
-
-    it('should fix bugs and restore passing tests', async () => {
-      const baselineDir = await createWorkspace('integration-baseline-for-fix');
-      const buggyDir = await createWorkspace('integration-buggy-for-fix');
-      const fixWorkspace = await createWorkspace('integration-fix');
-
-      try {
-        // Create baseline
-        const baselineResult = await provider.createCodingExercise(baselineDir);
-        expect(baselineResult.success).toBe(true);
-
-        // Inject bug
+        // PHASE 2: Inject bug
+        DebugLogger.logPhaseStart('BUG_INJECTION', 'Injecting bug into calculator');
         const bugResult = await provider.injectBug(baselineDir, buggyDir);
+
         expect(bugResult.success).toBe(true);
+        expect(bugResult.message).toContain('completed successfully');
 
-        // Attempt fix
-        const fixResult = await provider.fixAttempt(buggyDir, fixWorkspace);
+        // Verify buggy code exists
+        await access(join(buggyDir, 'package.json'));
+        await access(join(buggyDir, 'src', 'calculator.ts'));
+        await access(join(buggyDir, 'src', 'calculator.test.ts'));
+
+        // PHASE 3: Fix the bug
+        DebugLogger.logPhaseStart('FIX_ATTEMPT', 'Attempting to fix the bug');
+        const fixResult = await provider.fixAttempt(buggyDir, fixDir);
+
         expect(fixResult.success).toBe(true);
+        expect(fixResult.message).toContain('completed successfully');
 
-        // Verify files exist in fix workspace
-        await access(join(fixWorkspace, 'package.json'));
-        await access(join(fixWorkspace, 'src'));
+        // Verify fix workspace exists
+        await access(join(fixDir, 'package.json'));
+        await access(join(fixDir, 'src', 'calculator.ts'));
+        await access(join(fixDir, 'src', 'calculator.test.ts'));
+
+        DebugLogger.logPhaseEnd(
+          'INTEGRATION_TEST',
+          true,
+          'Complete competition workflow successful'
+        );
       } finally {
         await cleanupWorkspace(baselineDir);
         await cleanupWorkspace(buggyDir);
-        await cleanupWorkspace(fixWorkspace);
+        await cleanupWorkspace(fixDir);
       }
-    }, 300000);
+    }, 600000); // 10 minute timeout for complete workflow
   });
 
-  describe('competitive prompting effectiveness', () => {
-    it('should create different solutions across multiple runs', async () => {
-      const workspace1 = await createWorkspace('competition-run-1');
-      const workspace2 = await createWorkspace('competition-run-2');
+  describe('error handling', () => {
+    it('should handle copy failures gracefully', async () => {
+      const bugResult = await provider.injectBug('/nonexistent/baseline', '/tmp/test-bug-fail');
+      expect(bugResult.success).toBe(false);
+      expect(bugResult.message).toContain('Failed to copy baseline');
 
-      try {
-        const [result1, result2] = await Promise.all([
-          provider.createCodingExercise(workspace1),
-          provider.createCodingExercise(workspace2),
-        ]);
-
-        expect(result1.success).toBe(true);
-        expect(result2.success).toBe(true);
-
-        // Both should create valid projects but potentially with different approaches
-        await access(join(workspace1, 'package.json'));
-        await access(join(workspace2, 'package.json'));
-      } finally {
-        await cleanupWorkspace(workspace1);
-        await cleanupWorkspace(workspace2);
-      }
-    }, 600000); // Longer timeout for parallel execution
-  });
-
-  describe('error scenarios with real Claude Code', () => {
-    it('should handle invalid workspace directories gracefully', async () => {
-      const result = await provider.createCodingExercise('/invalid/nonexistent/path');
-
-      // Should either succeed (if Claude Code creates the path) or fail gracefully
-      expect(typeof result.success).toBe('boolean');
-      expect(typeof result.message).toBe('string');
-    });
-
-    it('should handle copy failures in bug injection', async () => {
-      const result = await provider.injectBug('/nonexistent/baseline', '/tmp/test-bug-fail');
-
-      expect(result.success).toBe(false);
-      expect(result.message).toContain('Failed to copy baseline');
-    });
-
-    it('should handle copy failures in fix attempt', async () => {
-      const result = await provider.fixAttempt('/nonexistent/buggy', '/tmp/test-fix-fail');
-
-      expect(result.success).toBe(false);
-      expect(result.message).toContain('Failed to copy buggy code');
+      const fixResult = await provider.fixAttempt('/nonexistent/buggy', '/tmp/test-fix-fail');
+      expect(fixResult.success).toBe(false);
+      expect(fixResult.message).toContain('Failed to copy buggy code');
     });
   });
 });

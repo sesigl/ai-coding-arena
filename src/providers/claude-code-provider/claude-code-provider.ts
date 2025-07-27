@@ -207,7 +207,7 @@ Fix the bug now and verify all tests pass.
           // Log key message types for visibility
           if (message.type === 'user' || message.type === 'assistant') {
             // Extract content from the message object
-            let contentPreview = 'No content';
+            let hasContent = false;
             let toolCalls: any[] = [];
 
             if (message.message && typeof message.message === 'object') {
@@ -222,55 +222,63 @@ Fix the bug now and verify all tests pass.
                   const textContent = textParts
                     .map((c: any) => c.text)
                     .join(' ')
-                    .slice(0, 200);
-                  contentPreview = textContent + (textContent.length === 200 ? '...' : '');
+                    .trim();
+                  if (textContent) {
+                    hasContent = true;
+                    DebugLogger.logContent(
+                      phaseUpper,
+                      `${message.type}: ${textContent.slice(0, 150)}${textContent.length > 150 ? '...' : ''}`
+                    );
+                  }
                 }
 
                 if (toolUseParts.length > 0) {
-                  toolCalls = toolUseParts.map((c: any) => ({
-                    name: c.name,
-                    input: typeof c.input === 'string' ? c.input.slice(0, 100) + '...' : c.input,
-                  }));
+                  toolCalls = toolUseParts;
+                  toolCalls.forEach((tool: any) => {
+                    DebugLogger.logContent(
+                      phaseUpper,
+                      `🔧 ${tool.name}: ${JSON.stringify(tool.input).slice(0, 100)}...`
+                    );
+                  });
+                  hasContent = true;
                 }
               } else if (
                 'content' in message.message &&
-                typeof message.message.content === 'string'
+                typeof message.message.content === 'string' &&
+                message.message.content.trim()
               ) {
-                contentPreview =
-                  message.message.content.slice(0, 200) +
-                  (message.message.content.length > 200 ? '...' : '');
+                hasContent = true;
+                const content = message.message.content.trim();
+                DebugLogger.logContent(
+                  phaseUpper,
+                  `${message.type}: ${content.slice(0, 150)}${content.length > 150 ? '...' : ''}`
+                );
               }
             }
 
-            DebugLogger.logProgress(phaseUpper, `Message ${messageCount} (${message.type})`, {
-              contentPreview: contentPreview || 'Empty content',
-              role: (message.message as any)?.role || 'unknown',
-              toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
-              hasToolCalls: toolCalls.length > 0,
-            });
+            if (!hasContent) {
+              DebugLogger.logDot();
+            }
           } else if (message.type === 'result' && (message as any).subtype === 'tool_use') {
-            DebugLogger.logProgress(phaseUpper, `Tool use: ${(message as any).name || 'unknown'}`, {
-              messageCount,
-              toolName: (message as any).name,
-            });
+            const toolName = (message as any).name || 'unknown';
+            DebugLogger.logContent(phaseUpper, `🔧 ${toolName}`);
           } else if (message.type === 'result' && (message as any).subtype === 'tool_result') {
             const isError = (message as any).is_error || false;
-            const outputPreview = (message as any).output
-              ? String((message as any).output).slice(0, 200) + '...'
-              : 'No output';
+            const duration = (message as any).duration_ms;
+            const status = isError ? '❌' : '✅';
+            const timing = duration ? ` (${duration}ms)` : '';
 
-            DebugLogger.logProgress(phaseUpper, `Tool result: ${isError ? 'ERROR' : 'SUCCESS'}`, {
-              messageCount,
-              isError,
-              duration_ms: (message as any).duration_ms,
-              outputPreview,
-            });
+            if (isError) {
+              const errorOutput = (message as any).output || 'No error details';
+              DebugLogger.logContent(
+                phaseUpper,
+                `${status} Error${timing}: ${String(errorOutput).slice(0, 100)}...`
+              );
+            } else {
+              DebugLogger.logContent(phaseUpper, `${status} Success${timing}`);
+            }
           } else {
-            // Log the full message structure for unknown types
-            DebugLogger.logProgress(phaseUpper, `Message ${messageCount} (${message.type})`, {
-              subtype: 'subtype' in message ? (message as any).subtype : undefined,
-              messageStructure: Object.keys(message),
-            });
+            DebugLogger.logDot();
           }
         }
 

@@ -29,4 +29,15 @@ export class DebugLogger {
   static logProgress(phase: string, step: string, details?: unknown): void {
     this.log(phase, `Progress: ${step}`, details);
   }
+
+  static logDot(): void {
+    if (!this.isDebugEnabled) return;
+    process.stdout.write('.');
+  }
+
+  static logContent(phase: string, content: string): void {
+    if (!this.isDebugEnabled) return;
+    // eslint-disable-next-line no-console
+    console.log(`[${phase}] ${content}`);
+  }
 }
