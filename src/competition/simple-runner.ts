@@ -12,6 +12,7 @@ import { ParticipantId } from 'domain/competition-event/participant-id';
 import { EventType } from 'domain/competition-event/event-type';
 import { Phase } from 'domain/competition-event/phase';
 import { Duration } from 'domain/competition-event/duration';
+import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
 import { Result, ok, err } from 'neverthrow';
 
 export interface CompetitionResult {
@@ -52,7 +53,12 @@ export class SimpleCompetitionRunner {
         true
       );
 
-      const codingExerciseResult = await this.createCodingExercise(provider, workspaceDir);
+      const baselinePrompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
+      const codingExerciseResult = await this.createCodingExercise(
+        provider,
+        workspaceDir,
+        baselinePrompt
+      );
 
       await this.logEvent(
         EventType.BASELINE_COMPLETED,
@@ -95,10 +101,11 @@ export class SimpleCompetitionRunner {
 
   private async createCodingExercise(
     provider: LLMProvider,
-    workspaceDir: string
+    workspaceDir: string,
+    prompt: string
   ): Promise<CodingExerciseResult> {
     const startTime = Date.now();
-    const providerResult = await provider.createCodingExercise(workspaceDir);
+    const providerResult = await provider.createCodingExercise(workspaceDir, prompt);
     const durationMs = Date.now() - startTime;
     const duration = Duration.fromSeconds(Math.floor(durationMs / 1000));
     return new CodingExerciseResult({ providerResult, duration });
@@ -124,8 +131,9 @@ export class SimpleCompetitionRunner {
         true
       );
 
+      const baselinePrompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
       const baselineStartTime = Date.now();
-      const baselineResult = await provider.createCodingExercise(baselineDir);
+      const baselineResult = await provider.createCodingExercise(baselineDir, baselinePrompt);
       const baselineDuration = Duration.fromSeconds(
         Math.floor((Date.now() - baselineStartTime) / 1000)
       );
@@ -157,8 +165,13 @@ export class SimpleCompetitionRunner {
         true
       );
 
+      const bugInjectionPrompt = SystemPrompts.formatPrompt(SystemPrompts.BUG_INJECTION);
       const bugInjectionStartTime = Date.now();
-      const bugInjectionResult = await provider.injectBug(baselineDir, buggyDir);
+      const bugInjectionResult = await provider.injectBug(
+        baselineDir,
+        buggyDir,
+        bugInjectionPrompt
+      );
       const bugInjectionDuration = Duration.fromSeconds(
         Math.floor((Date.now() - bugInjectionStartTime) / 1000)
       );
@@ -291,8 +304,9 @@ export class SimpleCompetitionRunner {
         true
       );
 
+      const baselinePrompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
       const baselineStartTime = Date.now();
-      const baselineResult = await provider.createCodingExercise(baselineDir);
+      const baselineResult = await provider.createCodingExercise(baselineDir, baselinePrompt);
       const baselineDuration = Duration.fromSeconds(
         Math.floor((Date.now() - baselineStartTime) / 1000)
       );
@@ -324,8 +338,13 @@ export class SimpleCompetitionRunner {
         true
       );
 
+      const bugInjectionPrompt = SystemPrompts.formatPrompt(SystemPrompts.BUG_INJECTION);
       const bugInjectionStartTime = Date.now();
-      const bugInjectionResult = await provider.injectBug(baselineDir, buggyDir);
+      const bugInjectionResult = await provider.injectBug(
+        baselineDir,
+        buggyDir,
+        bugInjectionPrompt
+      );
       const bugInjectionDuration = Duration.fromSeconds(
         Math.floor((Date.now() - bugInjectionStartTime) / 1000)
       );
@@ -357,8 +376,9 @@ export class SimpleCompetitionRunner {
         true
       );
 
+      const fixPrompt = SystemPrompts.formatPrompt(SystemPrompts.FIX_ATTEMPT);
       const fixStartTime = Date.now();
-      const fixResult = await provider.fixAttempt(buggyDir, fixDir);
+      const fixResult = await provider.fixAttempt(buggyDir, fixDir, fixPrompt);
       const fixDuration = Duration.fromSeconds(Math.floor((Date.now() - fixStartTime) / 1000));
 
       await this.logEvent(

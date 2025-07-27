@@ -10,56 +10,11 @@ import { DebugLogger } from 'utils/debug-logger';
 export class ClaudeCodeProvider implements LLMProvider {
   readonly name = 'claude-code';
 
-  async createCodingExercise(workspaceDir: string): Promise<{ success: boolean; message: string }> {
+  async createCodingExercise(
+    workspaceDir: string,
+    prompt: string
+  ): Promise<{ success: boolean; message: string }> {
     DebugLogger.logPhaseStart('BASELINE_CREATION', `Creating baseline project in ${workspaceDir}`);
-
-    const prompt = `I need you to create a complete TypeScript calculator project. Please create ALL files immediately without asking for permission.
-
-**REQUIRED FILES TO CREATE:**
-
-1. **package.json:**
-\`\`\`json
-{
-  "name": "calculator-project",
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "test": "vitest",
-    "build": "tsc"
-  },
-  "devDependencies": {
-    "typescript": "^5.0.0",
-    "vitest": "^1.0.0",
-    "@types/node": "^20.0.0"
-  }
-}
-\`\`\`
-
-2. **tsconfig.json:**
-\`\`\`json
-{
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "node",
-    "strict": true,
-    "outDir": "./dist",
-    "rootDir": "./src"
-  }
-}
-\`\`\`
-
-3. **src/calculator.ts:** Calculator class with add, subtract, multiply, divide methods
-4. **src/calculator.test.ts:** Comprehensive tests for all methods  
-5. **vitest.config.ts:** Test configuration
-
-**ACTION REQUIRED:** Use the Write tool to create each file. Do not ask for permission - just create them now. Make the calculator robust with proper error handling and comprehensive tests.
-
-**IMPORTANT TESTING INSTRUCTIONS:**
-- After creating all files, run the tests to verify everything works
-- For Vitest projects, ALWAYS use: \`CI=true vitest\` (never just \`vitest\` or \`npm test\`)
-- The CI=true flag prevents interactive prompts that would hang the process
-- Verify all tests pass before completing the task`;
 
     const result = await this.executeQuery(workspaceDir, prompt, 'baseline creation');
     DebugLogger.logPhaseEnd('BASELINE_CREATION', result.success, result.message);
@@ -68,7 +23,8 @@ export class ClaudeCodeProvider implements LLMProvider {
 
   async injectBug(
     baselineDir: string,
-    workspaceDir: string
+    workspaceDir: string,
+    prompt: string
   ): Promise<{ success: boolean; message: string }> {
     DebugLogger.logPhaseStart(
       'BUG_INJECTION',
@@ -87,29 +43,6 @@ export class ClaudeCodeProvider implements LLMProvider {
       };
     }
 
-    const prompt = `You need to inject a subtle bug into this calculator project that will cause tests to fail.
-
-**Your task:**
-1. Examine the existing code and tests
-2. Introduce ONE realistic bug that breaks at least one test
-3. Run the tests to verify they fail after your change
-4. The bug should be subtle but realistic (like an off-by-one error, wrong operator, boundary condition issue)
-
-**Examples of good bugs:**
-- Change multiplication to use addition in a loop
-- Introduce precision errors in division
-- Handle edge cases incorrectly (like division by zero)
-- Swap greater-than/less-than comparisons
-
-**Requirements:**
-- Tests must fail after the bug injection
-- The bug should look like a real programming mistake
-- Don't make it too obvious - it should require some analysis to find
-
-Inject the bug now and run tests to confirm they fail.
-
-**TESTING INSTRUCTIONS:** Use \`CI=true vitest\` to run tests (prevents hanging on interactive prompts).`;
-
     DebugLogger.logProgress('BUG_INJECTION', 'Starting bug injection with Claude Code');
     const result = await this.executeQuery(workspaceDir, prompt, 'bug injection');
     DebugLogger.logPhaseEnd('BUG_INJECTION', result.success, result.message);
@@ -118,7 +51,8 @@ Inject the bug now and run tests to confirm they fail.
 
   async fixAttempt(
     buggyDir: string,
-    workspaceDir: string
+    workspaceDir: string,
+    prompt: string
   ): Promise<{ success: boolean; message: string }> {
     DebugLogger.logPhaseStart(
       'FIX_ATTEMPT',
@@ -136,30 +70,6 @@ Inject the bug now and run tests to confirm they fail.
         message: errorMsg,
       };
     }
-
-    const prompt = `You need to find and fix the bug in this calculator project to make all tests pass.
-
-**Your task:**
-1. Run the tests first to see what's failing
-2. Examine the test failures to understand what's wrong
-3. Look at the calculator code to find the bug
-4. Fix the bug in the source code
-5. Run the tests again to confirm they all pass
-
-**Debugging approach:**
-- Check the test output carefully - what's the expected vs actual result?
-- Look at the calculator methods - which one is causing the failure?
-- Compare the failing method with the test expectations
-- Make the minimal fix needed to restore correct behavior
-
-**Requirements:**
-- All tests must pass after your fix
-- Don't change the tests, only fix the source code
-- Make sure your fix handles all the edge cases the tests cover
-
-Fix the bug now and verify all tests pass.
-
-**TESTING INSTRUCTIONS:** Use \`CI=true vitest\` to run tests (prevents hanging on interactive prompts).`;
 
     DebugLogger.logProgress('FIX_ATTEMPT', 'Starting bug fix with Claude Code');
     const result = await this.executeQuery(workspaceDir, prompt, 'fix attempt');

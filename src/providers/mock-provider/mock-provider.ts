@@ -9,7 +9,10 @@ import { fileURLToPath } from 'url';
 export class MockProvider implements LLMProvider {
   readonly name = 'mock-provider';
 
-  async createCodingExercise(workspaceDir: string): Promise<{ success: boolean; message: string }> {
+  async createCodingExercise(
+    workspaceDir: string,
+    _prompt: string
+  ): Promise<{ success: boolean; message: string }> {
     try {
       const currentDir = dirname(fileURLToPath(import.meta.url));
       const templateDir = join(currentDir, 'baseline');
@@ -33,7 +36,8 @@ export class MockProvider implements LLMProvider {
 
   async injectBug(
     baselineDir: string,
-    workspaceDir: string
+    workspaceDir: string,
+    _prompt: string
   ): Promise<{ success: boolean; message: string }> {
     try {
       await cp(baselineDir, workspaceDir, {
@@ -65,7 +69,8 @@ export class MockProvider implements LLMProvider {
 
   async fixAttempt(
     buggyDir: string,
-    workspaceDir: string
+    workspaceDir: string,
+    _prompt: string
   ): Promise<{ success: boolean; message: string }> {
     try {
       await cp(buggyDir, workspaceDir, {

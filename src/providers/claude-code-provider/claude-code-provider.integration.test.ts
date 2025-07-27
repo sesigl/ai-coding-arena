@@ -28,7 +28,10 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
       try {
         // PHASE 1: Create baseline project
         DebugLogger.logPhaseStart('BASELINE_CREATION', 'Creating baseline calculator project');
-        const baselineResult = await provider.createCodingExercise(baselineDir);
+        const baselineResult = await provider.createCodingExercise(
+          baselineDir,
+          'Create a TypeScript calculator project'
+        );
 
         expect(baselineResult.success).toBe(true);
         expect(baselineResult.message).toContain('completed successfully');
@@ -45,7 +48,11 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
 
         // PHASE 2: Inject bug
         DebugLogger.logPhaseStart('BUG_INJECTION', 'Injecting bug into calculator');
-        const bugResult = await provider.injectBug(baselineDir, buggyDir);
+        const bugResult = await provider.injectBug(
+          baselineDir,
+          buggyDir,
+          'Inject a bug into the calculator'
+        );
 
         expect(bugResult.success).toBe(true);
         expect(bugResult.message).toContain('completed successfully');
@@ -57,7 +64,11 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
 
         // PHASE 3: Fix the bug
         DebugLogger.logPhaseStart('FIX_ATTEMPT', 'Attempting to fix the bug');
-        const fixResult = await provider.fixAttempt(buggyDir, fixDir);
+        const fixResult = await provider.fixAttempt(
+          buggyDir,
+          fixDir,
+          'Fix the bug in the calculator'
+        );
 
         expect(fixResult.success).toBe(true);
         expect(fixResult.message).toContain('completed successfully');
@@ -82,11 +93,19 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
 
   describe('error handling', () => {
     it('should handle copy failures gracefully', async () => {
-      const bugResult = await provider.injectBug('/nonexistent/baseline', '/tmp/test-bug-fail');
+      const bugResult = await provider.injectBug(
+        '/nonexistent/baseline',
+        '/tmp/test-bug-fail',
+        'Test prompt'
+      );
       expect(bugResult.success).toBe(false);
       expect(bugResult.message).toContain('Failed to copy baseline');
 
-      const fixResult = await provider.fixAttempt('/nonexistent/buggy', '/tmp/test-fix-fail');
+      const fixResult = await provider.fixAttempt(
+        '/nonexistent/buggy',
+        '/tmp/test-fix-fail',
+        'Test prompt'
+      );
       expect(fixResult.success).toBe(false);
       expect(fixResult.message).toContain('Failed to copy buggy code');
     });

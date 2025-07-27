@@ -33,14 +33,17 @@ describe('MockProvider', () => {
 
   describe('createBaseline', () => {
     it('should return success true with message', async () => {
-      const result = await mockProvider.createCodingExercise(workspaceDir);
+      const result = await mockProvider.createCodingExercise(
+        workspaceDir,
+        'Create a calculator project'
+      );
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('baseline created');
     });
 
     it('should create calculator program file', async () => {
-      await mockProvider.createCodingExercise(workspaceDir);
+      await mockProvider.createCodingExercise(workspaceDir, 'Create a calculator project');
 
       const programFile = join(workspaceDir, 'src', 'calculator.ts');
       expect(existsSync(programFile)).toBe(true);
@@ -50,7 +53,7 @@ describe('MockProvider', () => {
     });
 
     it('should create test file', async () => {
-      await mockProvider.createCodingExercise(workspaceDir);
+      await mockProvider.createCodingExercise(workspaceDir, 'Create a calculator project');
 
       const testFile = join(workspaceDir, 'calculator.test.ts');
       expect(existsSync(testFile)).toBe(true);
@@ -60,7 +63,7 @@ describe('MockProvider', () => {
     });
 
     it('should create complete executable project structure', async () => {
-      await mockProvider.createCodingExercise(workspaceDir);
+      await mockProvider.createCodingExercise(workspaceDir, 'Create a calculator project');
 
       expect(existsSync(join(workspaceDir, 'package.json'))).toBe(true);
       expect(existsSync(join(workspaceDir, 'tsconfig.json'))).toBe(true);
@@ -73,7 +76,7 @@ describe('MockProvider', () => {
 
     beforeEach(async () => {
       baselineDir = await createWorkspace('baseline-test');
-      await mockProvider.createCodingExercise(baselineDir);
+      await mockProvider.createCodingExercise(baselineDir, 'Create a calculator project');
     });
 
     afterEach(async () => {
@@ -83,7 +86,11 @@ describe('MockProvider', () => {
     it('should inject bug and break tests', async () => {
       const buggyDir = await createWorkspace('buggy-test');
 
-      const result = await mockProvider.injectBug(baselineDir, buggyDir);
+      const result = await mockProvider.injectBug(
+        baselineDir,
+        buggyDir,
+        'Inject a bug into the calculator'
+      );
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('bug injected');
@@ -101,7 +108,7 @@ describe('MockProvider', () => {
     it('should preserve project structure when injecting bug', async () => {
       const buggyDir = await createWorkspace('structure-test');
 
-      await mockProvider.injectBug(baselineDir, buggyDir);
+      await mockProvider.injectBug(baselineDir, buggyDir, 'Inject a bug into the calculator');
 
       expect(existsSync(join(buggyDir, 'package.json'))).toBe(true);
       expect(existsSync(join(buggyDir, 'tsconfig.json'))).toBe(true);
@@ -118,10 +125,10 @@ describe('MockProvider', () => {
 
     beforeEach(async () => {
       baselineDir = await createWorkspace('baseline-test');
-      await mockProvider.createCodingExercise(baselineDir);
+      await mockProvider.createCodingExercise(baselineDir, 'Create a calculator project');
 
       buggyDir = await createWorkspace('buggy-test');
-      await mockProvider.injectBug(baselineDir, buggyDir);
+      await mockProvider.injectBug(baselineDir, buggyDir, 'Inject a bug into the calculator');
     });
 
     afterEach(async () => {
@@ -132,7 +139,11 @@ describe('MockProvider', () => {
     it('should fix bug and restore correct functionality', async () => {
       const fixDir = await createWorkspace('fix-test');
 
-      const result = await mockProvider.fixAttempt(buggyDir, fixDir);
+      const result = await mockProvider.fixAttempt(
+        buggyDir,
+        fixDir,
+        'Fix the bug in the calculator'
+      );
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('fix applied');
@@ -151,7 +162,7 @@ describe('MockProvider', () => {
     it('should preserve project structure when fixing bug', async () => {
       const fixDir = await createWorkspace('fix-structure-test');
 
-      await mockProvider.fixAttempt(buggyDir, fixDir);
+      await mockProvider.fixAttempt(buggyDir, fixDir, 'Fix the bug in the calculator');
 
       expect(existsSync(join(fixDir, 'package.json'))).toBe(true);
       expect(existsSync(join(fixDir, 'tsconfig.json'))).toBe(true);

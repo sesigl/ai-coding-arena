@@ -1,15 +1,23 @@
 // ABOUTME: LLMProvider interface defining the contract for all LLM providers
-// Minimal interface for baseline creation workflow
+// System provides prompts, providers execute tasks using their specific implementation
 
 export interface LLMProvider {
   readonly name: string;
-  createCodingExercise(workspaceDir: string): Promise<{ success: boolean; message: string }>;
+
+  createCodingExercise(
+    workspaceDir: string,
+    prompt: string
+  ): Promise<{ success: boolean; message: string }>;
+
   injectBug(
     baselineDir: string,
-    workspaceDir: string
+    workspaceDir: string,
+    prompt: string
   ): Promise<{ success: boolean; message: string }>;
+
   fixAttempt(
     buggyDir: string,
-    workspaceDir: string
+    workspaceDir: string,
+    prompt: string
   ): Promise<{ success: boolean; message: string }>;
 }
