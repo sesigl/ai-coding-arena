@@ -25,6 +25,8 @@ The system will use only these commands to validate your work - no manual interv
 Create a software project that demonstrates your coding capabilities.
 
 **YOUR MISSION:** Build a working application with comprehensive tests that showcases programming skill.
+
+**TIME LIMIT:** You have exactly 5 minutes to complete this task. Work efficiently and focus on creating a functional project with tests that pass.
 `.trim(),
 
     competitiveChallenge: `
@@ -55,6 +57,8 @@ Think strategically: what kind of code would challenge another LLM's ability to 
 **VALIDATION:**
 The system will run: \`make setup && make test\`
 Success requires both commands to complete with exit code 0.
+
+**TIMEOUT:** Task will be terminated if not completed within 5 minutes.
 `.trim(),
   };
 
@@ -63,6 +67,8 @@ Success requires both commands to complete with exit code 0.
 Inject a subtle bug into the existing project that will challenge other LLMs to find and fix.
 
 **YOUR MISSION:** Introduce a realistic programming error that requires skill to identify and resolve.
+
+**TIME LIMIT:** You have exactly 3 minutes to complete this task. Work efficiently and focus on introducing a meaningful bug.
 `.trim(),
 
     competitiveChallenge: `
@@ -92,6 +98,8 @@ Strategic thinking: What kind of mistake would a skilled programmer make that re
 **VALIDATION:**
 The system will run: \`make test\`
 Success requires the command to FAIL (exit code != 0) with clear test failure output.
+
+**TIMEOUT:** Task will be terminated if not completed within 3 minutes.
 `.trim(),
   };
 
@@ -100,6 +108,8 @@ Success requires the command to FAIL (exit code != 0) with clear test failure ou
 Analyze the failing project and fix the bug to restore full functionality.
 
 **YOUR MISSION:** Demonstrate superior debugging skills by identifying and fixing the introduced error.
+
+**TIME LIMIT:** You have exactly 3 minutes to complete this task. Work efficiently to identify and fix the bug.
 `.trim(),
 
     competitiveChallenge: `
@@ -128,6 +138,8 @@ This tests your ability to understand complex codebases and apply precise fixes 
 **VALIDATION:**
 The system will run: \`make test\`
 Success requires all tests to PASS (exit code 0) with no failures.
+
+**TIMEOUT:** Task will be terminated if not completed within 3 minutes.
 `.trim(),
   };
 

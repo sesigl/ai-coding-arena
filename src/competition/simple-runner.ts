@@ -15,6 +15,7 @@ import { Duration } from 'domain/competition-event/duration';
 import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
 import { MakefileValidator } from 'infrastructure/contract-validator/makefile-validator';
 import { Result, ok, err } from 'neverthrow';
+import { setTimeout, clearTimeout } from 'timers';
 
 export interface CompetitionResult {
   readonly success: boolean;
@@ -110,7 +111,11 @@ export class SimpleCompetitionRunner {
     prompt: string
   ): Promise<CodingExerciseResult> {
     const startTime = Date.now();
-    const providerResult = await provider.createCodingExercise(workspaceDir, prompt);
+    const providerResult = await this.withTimeout(
+      provider.createCodingExercise(workspaceDir, prompt),
+      300000, // 5 minutes for baseline creation
+      'Baseline creation exceeded 5-minute time limit'
+    );
     const durationMs = Date.now() - startTime;
     const duration = Duration.fromSeconds(Math.floor(durationMs / 1000));
     return new CodingExerciseResult({ providerResult, duration });
@@ -305,7 +310,11 @@ export class SimpleCompetitionRunner {
 
       const baselinePrompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
       const baselineStartTime = Date.now();
-      const baselineResult = await provider.createCodingExercise(baselineDir, baselinePrompt);
+      const baselineResult = await this.withTimeout(
+        provider.createCodingExercise(baselineDir, baselinePrompt),
+        300000, // 5 minutes for baseline creation
+        'Baseline creation exceeded 5-minute time limit'
+      );
       const baselineDuration = Duration.fromSeconds(
         Math.floor((Date.now() - baselineStartTime) / 1000)
       );
@@ -344,10 +353,10 @@ export class SimpleCompetitionRunner {
 
       const bugInjectionPrompt = SystemPrompts.formatPrompt(SystemPrompts.BUG_INJECTION);
       const bugInjectionStartTime = Date.now();
-      const bugInjectionResult = await provider.injectBug(
-        baselineDir,
-        buggyDir,
-        bugInjectionPrompt
+      const bugInjectionResult = await this.withTimeout(
+        provider.injectBug(baselineDir, buggyDir, bugInjectionPrompt),
+        180000, // 3 minutes for bug injection
+        'Bug injection exceeded 3-minute time limit'
       );
       const bugInjectionDuration = Duration.fromSeconds(
         Math.floor((Date.now() - bugInjectionStartTime) / 1000)
@@ -387,7 +396,11 @@ export class SimpleCompetitionRunner {
 
       const fixPrompt = SystemPrompts.formatPrompt(SystemPrompts.FIX_ATTEMPT);
       const fixStartTime = Date.now();
-      const fixResult = await provider.fixAttempt(buggyDir, fixDir, fixPrompt);
+      const fixResult = await this.withTimeout(
+        provider.fixAttempt(buggyDir, fixDir, fixPrompt),
+        180000, // 3 minutes for fix attempt
+        'Fix attempt exceeded 3-minute time limit'
+      );
       const fixDuration = Duration.fromSeconds(Math.floor((Date.now() - fixStartTime) / 1000));
 
       await this.logEvent(
@@ -491,6 +504,28 @@ export class SimpleCompetitionRunner {
     if (result.isErr()) {
       throw new Error(`Failed to log system event: ${result.error.message}`);
     }
+  }
+
+  private async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    timeoutMessage: string
+  ): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error(timeoutMessage));
+      }, timeoutMs);
+
+      promise
+        .then(result => {
+          clearTimeout(timeoutId);
+          resolve(result);
+        })
+        .catch(error => {
+          clearTimeout(timeoutId);
+          reject(error);
+        });
+    });
   }
 
   private createSummary(participantResults: CompetitionResult[], overallSuccess: boolean): string {

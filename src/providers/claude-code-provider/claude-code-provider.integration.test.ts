@@ -7,6 +7,7 @@ import { createWorkspace, cleanupWorkspace } from 'infrastructure/workspace/work
 import { readFile, access } from 'fs/promises';
 import { join } from 'path';
 import { DebugLogger } from 'utils/debug-logger';
+import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
 
 const INTEGRATION_TESTS_ENABLED = process.env.ENABLE_CLAUDE_INTEGRATION_TESTS === 'true';
 
@@ -28,55 +29,41 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
       try {
         // PHASE 1: Create baseline project
         DebugLogger.logPhaseStart('BASELINE_CREATION', 'Creating baseline calculator project');
-        const baselineResult = await provider.createCodingExercise(
-          baselineDir,
-          'Create a TypeScript calculator project'
-        );
+        const baselinePrompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
+        const baselineResult = await provider.createCodingExercise(baselineDir, baselinePrompt);
 
         expect(baselineResult.success).toBe(true);
         expect(baselineResult.message).toContain('completed successfully');
 
-        // Verify baseline structure
-        await access(join(baselineDir, 'package.json'));
-        await access(join(baselineDir, 'tsconfig.json'));
-        await access(join(baselineDir, 'src', 'calculator.ts'));
-        await access(join(baselineDir, 'src', 'calculator.test.ts'));
+        // Verify baseline structure (including required Makefile contract)
+        await access(join(baselineDir, 'Makefile')); // Contract requirement
 
-        const packageJson = JSON.parse(await readFile(join(baselineDir, 'package.json'), 'utf-8'));
-        expect(packageJson.devDependencies).toHaveProperty('vitest');
-        expect(packageJson.devDependencies).toHaveProperty('typescript');
+        // Verify the project can actually be built and tested via Makefile
+        const makefileContent = await readFile(join(baselineDir, 'Makefile'), 'utf-8');
+        expect(makefileContent).toContain('setup:');
+        expect(makefileContent).toContain('test:');
 
         // PHASE 2: Inject bug
         DebugLogger.logPhaseStart('BUG_INJECTION', 'Injecting bug into calculator');
-        const bugResult = await provider.injectBug(
-          baselineDir,
-          buggyDir,
-          'Inject a bug into the calculator'
-        );
+        const bugInjectionPrompt = SystemPrompts.formatPrompt(SystemPrompts.BUG_INJECTION);
+        const bugResult = await provider.injectBug(baselineDir, buggyDir, bugInjectionPrompt);
 
         expect(bugResult.success).toBe(true);
         expect(bugResult.message).toContain('completed successfully');
 
-        // Verify buggy code exists
-        await access(join(buggyDir, 'package.json'));
-        await access(join(buggyDir, 'src', 'calculator.ts'));
-        await access(join(buggyDir, 'src', 'calculator.test.ts'));
+        // Verify buggy code exists and Makefile contract maintained
+        await access(join(buggyDir, 'Makefile')); // Contract requirement
 
         // PHASE 3: Fix the bug
         DebugLogger.logPhaseStart('FIX_ATTEMPT', 'Attempting to fix the bug');
-        const fixResult = await provider.fixAttempt(
-          buggyDir,
-          fixDir,
-          'Fix the bug in the calculator'
-        );
+        const fixPrompt = SystemPrompts.formatPrompt(SystemPrompts.FIX_ATTEMPT);
+        const fixResult = await provider.fixAttempt(buggyDir, fixDir, fixPrompt);
 
         expect(fixResult.success).toBe(true);
         expect(fixResult.message).toContain('completed successfully');
 
-        // Verify fix workspace exists
-        await access(join(fixDir, 'package.json'));
-        await access(join(fixDir, 'src', 'calculator.ts'));
-        await access(join(fixDir, 'src', 'calculator.test.ts'));
+        // Verify fix workspace exists and Makefile contract maintained
+        await access(join(fixDir, 'Makefile')); // Contract requirement
 
         DebugLogger.logPhaseEnd(
           'INTEGRATION_TEST',

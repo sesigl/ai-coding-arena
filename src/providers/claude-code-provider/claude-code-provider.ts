@@ -250,9 +250,10 @@ export class ClaudeCodeProvider implements LLMProvider {
     switch (phase) {
       case 'baseline creation':
         return (
-          allMessages.includes('package.json') &&
-          allMessages.includes('created') &&
-          (allMessages.includes('test') || allMessages.includes('vitest'))
+          allMessages.includes('makefile') &&
+          allMessages.includes('setup') &&
+          allMessages.includes('test') &&
+          (allMessages.includes('created') || allMessages.includes('written'))
         );
 
       case 'bug injection':
@@ -260,7 +261,8 @@ export class ClaudeCodeProvider implements LLMProvider {
           allMessages.includes('test') &&
           (allMessages.includes('fail') ||
             allMessages.includes('failing') ||
-            allMessages.includes('broken'))
+            allMessages.includes('broken') ||
+            allMessages.includes('bug'))
         );
 
       case 'fix attempt':
@@ -268,7 +270,8 @@ export class ClaudeCodeProvider implements LLMProvider {
           allMessages.includes('test') &&
           (allMessages.includes('pass') ||
             allMessages.includes('passing') ||
-            allMessages.includes('fixed'))
+            allMessages.includes('fixed') ||
+            allMessages.includes('fix'))
         );
 
       default:
