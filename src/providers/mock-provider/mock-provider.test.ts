@@ -100,7 +100,7 @@ describe('MockProvider', () => {
 
       const content = await readFile(calculatorFile, 'utf-8');
       expect(content).toContain('Calculator');
-      expect(content).toContain('return a - b'); // Bug: subtraction instead of addition
+      expect(content).toContain('return a - b');
 
       await cleanupWorkspace(buggyDir);
     });

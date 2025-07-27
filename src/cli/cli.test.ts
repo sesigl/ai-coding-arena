@@ -58,14 +58,13 @@ describe('CLI', () => {
     });
 
     it('should handle unknown provider error', async () => {
-      // Mock process.exit to prevent test termination
       const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       try {
         await runCompetition(workspaceDir, ['unknown-provider']);
       } catch {
-        // Expected to throw due to unknown provider
+        // Expected error for unknown provider
       }
 
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -91,7 +90,4 @@ describe('CLI', () => {
       );
     });
   });
-
-  // Note: Error handling tests removed due to complexity with process.exit in test environment
-  // The CLI properly handles errors in real usage
 });

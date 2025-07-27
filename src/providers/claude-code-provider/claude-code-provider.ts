@@ -90,7 +90,7 @@ export class ClaudeCodeProvider implements LLMProvider {
 
       const timeout = nodeSetTimeout(() => {
         abortController.abort();
-      }, 180000); // 3 minutes for complex thinking
+      }, 180000);
 
       DebugLogger.logProgress(phaseUpper, 'Starting Claude Code conversation', {
         workspaceDir,
@@ -106,23 +106,19 @@ export class ClaudeCodeProvider implements LLMProvider {
           options: {
             maxTurns: 15, // Allow more turns for deep analysis
             cwd: workspaceDir,
-            // Grant all necessary permissions for file creation and testing
             allowedTools: ['Read', 'Write', 'Bash', 'Edit', 'Glob', 'LS'],
-            disallowedTools: [], // Allow all tools for automation
+            disallowedTools: [],
           },
         })) {
           messages.push(message);
           messageCount++;
 
-          // Log key message types for visibility
           if (message.type === 'user' || message.type === 'assistant') {
-            // Extract content from the message object
             let hasContent = false;
             let toolCalls: any[] = [];
 
             if (message.message && typeof message.message === 'object') {
               if ('content' in message.message && Array.isArray(message.message.content)) {
-                // Handle content array (anthropic message format)
                 const textParts = message.message.content.filter((c: any) => c.type === 'text');
                 const toolUseParts = message.message.content.filter(
                   (c: any) => c.type === 'tool_use'
@@ -246,7 +242,6 @@ export class ClaudeCodeProvider implements LLMProvider {
   }
 
   private determineSuccess(messages: SDKMessage[], phase: string): boolean {
-    // More conservative success detection - require substantial evidence
     const allMessages = messages
       .map(msg => JSON.stringify(msg))
       .join(' ')
@@ -254,7 +249,6 @@ export class ClaudeCodeProvider implements LLMProvider {
 
     switch (phase) {
       case 'baseline creation':
-        // Look for strong indicators of file creation
         return (
           allMessages.includes('package.json') &&
           allMessages.includes('created') &&
@@ -262,7 +256,6 @@ export class ClaudeCodeProvider implements LLMProvider {
         );
 
       case 'bug injection':
-        // Look for explicit test failure mentions
         return (
           allMessages.includes('test') &&
           (allMessages.includes('fail') ||
@@ -271,7 +264,6 @@ export class ClaudeCodeProvider implements LLMProvider {
         );
 
       case 'fix attempt':
-        // Look for test restoration
         return (
           allMessages.includes('test') &&
           (allMessages.includes('pass') ||

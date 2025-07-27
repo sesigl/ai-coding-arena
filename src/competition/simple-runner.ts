@@ -13,6 +13,7 @@ import { EventType } from 'domain/competition-event/event-type';
 import { Phase } from 'domain/competition-event/phase';
 import { Duration } from 'domain/competition-event/duration';
 import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
+import { MakefileValidator } from 'infrastructure/contract-validator/makefile-validator';
 import { Result, ok, err } from 'neverthrow';
 
 export interface CompetitionResult {
@@ -29,10 +30,14 @@ export interface MultiParticipantCompetitionResult {
 }
 
 export class SimpleCompetitionRunner {
+  private readonly validator: MakefileValidator;
+
   constructor(
     private readonly eventStore: EventStore,
     private readonly competitionId: CompetitionId
-  ) {}
+  ) {
+    this.validator = new MakefileValidator();
+  }
 
   private async createBaselineOnly(
     provider: LLMProvider
@@ -194,7 +199,6 @@ export class SimpleCompetitionRunner {
 
       return ok(competitionResult);
     } catch (error) {
-      // Log failure
       await this.logEvent(
         EventType.BUG_INJECTION_COMPLETED,
         Phase.BUG_INJECTION,
@@ -228,13 +232,11 @@ export class SimpleCompetitionRunner {
     let overallSuccess = true;
 
     try {
-      // Log competition start
       await this.logSystemEvent(EventType.COMPETITION_STARTED, Phase.BASELINE, {
         participantCount: providers.length,
         providers: providers.map(p => p.name),
       });
 
-      // Run each participant sequentially through all phases
       for (const provider of providers) {
         try {
           const participantResult = await this.runCompetition(provider);
@@ -245,7 +247,6 @@ export class SimpleCompetitionRunner {
               overallSuccess = false;
             }
           } else {
-            // Handle individual participant failure gracefully
             const failedResult: CompetitionResult = {
               success: false,
               message: `Competition failed: ${participantResult.error.message}`,
@@ -255,7 +256,6 @@ export class SimpleCompetitionRunner {
             overallSuccess = false;
           }
         } catch (error) {
-          // Handle unexpected errors for individual participant
           const errorResult: CompetitionResult = {
             success: false,
             message: `Unexpected error: ${error instanceof Error ? error.message : String(error)}`,
@@ -266,7 +266,6 @@ export class SimpleCompetitionRunner {
         }
       }
 
-      // Log competition completion
       await this.logSystemEvent(EventType.COMPETITION_COMPLETED, Phase.FIX_ATTEMPT, {
         participantCount: providers.length,
         successfulParticipants: participantResults.filter(r => r.success).length,
@@ -328,6 +327,11 @@ export class SimpleCompetitionRunner {
         });
       }
 
+      const baselineValidation = await this.validator.validateSetupAndTest(baselineDir);
+      if (!baselineValidation.success) {
+        return err(new Error(baselineValidation.message));
+      }
+
       buggyDir = await createWorkspace(`buggy-${this.competitionId.getValue()}-${provider.name}`);
 
       await this.logEvent(
@@ -366,6 +370,11 @@ export class SimpleCompetitionRunner {
         });
       }
 
+      const bugValidation = await this.validator.expectTestFailure(buggyDir);
+      if (!bugValidation.success) {
+        return err(new Error(bugValidation.message));
+      }
+
       fixDir = await createWorkspace(`fix-${this.competitionId.getValue()}-${provider.name}`);
 
       await this.logEvent(
@@ -390,6 +399,11 @@ export class SimpleCompetitionRunner {
         fixDuration
       );
 
+      const fixValidation = await this.validator.validateTestOnly(fixDir);
+      if (!fixValidation.success) {
+        return err(new Error(`Fix validation failed: ${fixValidation.message}`));
+      }
+
       const competitionResult: CompetitionResult = {
         success: fixResult.success,
         message: `Three-phase workflow completed: ${baselineResult.message}, ${bugInjectionResult.message}, ${fixResult.message}`,
@@ -399,7 +413,6 @@ export class SimpleCompetitionRunner {
 
       return ok(competitionResult);
     } catch (error) {
-      // Log failure
       await this.logEvent(
         EventType.FIX_ATTEMPT_COMPLETED,
         Phase.FIX_ATTEMPT,

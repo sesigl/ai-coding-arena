@@ -55,6 +55,19 @@ export class MockProvider implements LLMProvider {
 
       await writeFile(calculatorPath, buggyCode, 'utf-8');
 
+      // Update Makefile to simulate failing tests after bug injection
+      const makefilePath = join(workspaceDir, 'Makefile');
+      const buggyMakefile = `setup:
+\techo "Mock dependencies installed"
+
+test:
+\techo "Running tests..."
+\techo "❌ Tests failed due to bug injection"
+\texit 1
+
+.PHONY: setup test`;
+      await writeFile(makefilePath, buggyMakefile, 'utf-8');
+
       return {
         success: true,
         message: 'Mock bug injected successfully - calculator now subtracts instead of adds',
@@ -87,6 +100,18 @@ export class MockProvider implements LLMProvider {
       );
 
       await writeFile(calculatorPath, fixedCode, 'utf-8');
+
+      // Restore Makefile with passing tests
+      const makefilePath = join(workspaceDir, 'Makefile');
+      const fixedMakefile = `setup:
+\techo "Mock dependencies installed"
+
+test:
+\techo "Running tests..."
+\techo "✅ All tests passed after fix"
+
+.PHONY: setup test`;
+      await writeFile(makefilePath, fixedMakefile, 'utf-8');
 
       return {
         success: true,

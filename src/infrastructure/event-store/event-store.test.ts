@@ -16,7 +16,6 @@ describe('EventStore', () => {
   const testDbPath = './testdata/test-events.duckdb';
 
   beforeEach(async () => {
-    // Ensure testdata directory exists
     if (!existsSync('./testdata')) {
       await mkdir('./testdata', { recursive: true });
     }
@@ -30,13 +29,12 @@ describe('EventStore', () => {
     try {
       await unlink(testDbPath);
     } catch {
-      // Ignore if file doesn't exist
+      // Database file might already be deleted
     }
   });
 
   describe('initialization', () => {
     it('should create database and tables successfully', async () => {
-      // Test that initialization doesn't throw
       expect(eventStore).toBeDefined();
     });
   });
@@ -166,7 +164,6 @@ describe('EventStore', () => {
 
   describe('getEventCount', () => {
     beforeEach(async () => {
-      // For count test, no specific field values matter - just need 3 events
       const events = [
         TestEventFactory.createBasicEvent({ id: 'event-1' }),
         TestEventFactory.createBasicEvent({ id: 'event-2' }),

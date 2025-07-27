@@ -10,7 +10,7 @@ import { ResultsFormatter } from 'results/formatter';
 import { existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { unlink } from 'fs/promises';
+import { unlink, writeFile, cp } from 'fs/promises';
 
 describe('SimpleCompetitionRunner', () => {
   let runner: SimpleCompetitionRunner;
@@ -34,7 +34,7 @@ describe('SimpleCompetitionRunner', () => {
     try {
       await unlink(dbPath);
     } catch {
-      // Ignore cleanup errors
+      // Database file might already be deleted
     }
   });
 
@@ -124,7 +124,13 @@ describe('SimpleCompetitionRunner', () => {
     it('should handle bug injection failure gracefully', async () => {
       const failingProvider = {
         name: 'failing-provider',
-        createCodingExercise: async () => ({ success: true, message: 'Baseline created' }),
+        createCodingExercise: async (workspaceDir: string, _prompt: string) => {
+          await writeFile(
+            join(workspaceDir, 'Makefile'),
+            'setup:\n\techo "ready"\ntest:\n\techo "pass"'
+          );
+          return { success: true, message: 'Baseline created' };
+        },
         injectBug: async () => ({ success: false, message: 'Bug injection failed' }),
         fixAttempt: async () => ({ success: true, message: 'Fix applied' }),
       };
@@ -169,7 +175,7 @@ describe('SimpleCompetitionRunner', () => {
       expect(baselinePhase).toBeDefined();
       expect(baselinePhase?.success).toBe(true);
       expect(baselinePhase?.participant).toBe('mock-provider');
-      expect(baselinePhase?.duration).toBe(0); // MockProvider uses 0 duration
+      expect(baselinePhase?.duration).toBe(0);
 
       const bugInjectionPhase = summary.phases.find(p => p.phase === 'bug_injection');
       expect(bugInjectionPhase).toBeDefined();
@@ -230,10 +236,13 @@ describe('SimpleCompetitionRunner', () => {
     it('should handle partial failure and reflect it in results summary', async () => {
       const partialFailureProvider = {
         name: 'partial-failure-provider',
-        createCodingExercise: async () => ({
-          success: true,
-          message: 'Baseline created successfully',
-        }),
+        createCodingExercise: async (workspaceDir: string, _prompt: string) => {
+          await writeFile(
+            join(workspaceDir, 'Makefile'),
+            'setup:\n\techo "ready"\ntest:\n\techo "pass"'
+          );
+          return { success: true, message: 'Baseline created successfully' };
+        },
         injectBug: async () => ({
           success: false,
           message: 'Bug injection failed due to test error',
@@ -275,7 +284,7 @@ describe('SimpleCompetitionRunner', () => {
       const participantStats = summary.statistics.participantStats['partial-failure-provider'];
       expect(participantStats?.phases.baseline).toBe(true);
       expect(participantStats?.phases.bugInjection).toBe(false);
-      expect(participantStats?.phases.fixAttempt).toBe(null); // Not attempted
+      expect(participantStats?.phases.fixAttempt).toBe(null);
     });
   });
 
@@ -284,9 +293,29 @@ describe('SimpleCompetitionRunner', () => {
       const mockProvider1 = new MockProvider();
       const mockProvider2 = {
         name: 'mock-provider-2',
-        createCodingExercise: async () => ({ success: true, message: 'Baseline created' }),
-        injectBug: async () => ({ success: true, message: 'Bug injected' }),
-        fixAttempt: async () => ({ success: true, message: 'Fix applied' }),
+        createCodingExercise: async (workspaceDir: string, _prompt: string) => {
+          await writeFile(
+            join(workspaceDir, 'Makefile'),
+            'setup:\n\techo "ready"\ntest:\n\techo "pass"'
+          );
+          return { success: true, message: 'Baseline created' };
+        },
+        injectBug: async (baselineDir: string, workspaceDir: string, _prompt: string) => {
+          await cp(baselineDir, workspaceDir, { recursive: true });
+          await writeFile(
+            join(workspaceDir, 'Makefile'),
+            'setup:\n\techo "ready"\ntest:\n\techo "fail"; exit 1'
+          );
+          return { success: true, message: 'Bug injected' };
+        },
+        fixAttempt: async (buggyDir: string, workspaceDir: string, _prompt: string) => {
+          await cp(buggyDir, workspaceDir, { recursive: true });
+          await writeFile(
+            join(workspaceDir, 'Makefile'),
+            'setup:\n\techo "ready"\ntest:\n\techo "pass"'
+          );
+          return { success: true, message: 'Fix applied' };
+        },
       };
 
       const competitionId = new CompetitionId(`multi-test-${Date.now()}`);
@@ -372,9 +401,29 @@ describe('SimpleCompetitionRunner', () => {
       const mockProvider1 = new MockProvider();
       const mockProvider2 = {
         name: 'mock-provider-2',
-        createCodingExercise: async () => ({ success: true, message: 'Baseline created' }),
-        injectBug: async () => ({ success: true, message: 'Bug injected' }),
-        fixAttempt: async () => ({ success: true, message: 'Fix applied' }),
+        createCodingExercise: async (workspaceDir: string, _prompt: string) => {
+          await writeFile(
+            join(workspaceDir, 'Makefile'),
+            'setup:\n\techo "ready"\ntest:\n\techo "pass"'
+          );
+          return { success: true, message: 'Baseline created' };
+        },
+        injectBug: async (baselineDir: string, workspaceDir: string, _prompt: string) => {
+          await cp(baselineDir, workspaceDir, { recursive: true });
+          await writeFile(
+            join(workspaceDir, 'Makefile'),
+            'setup:\n\techo "ready"\ntest:\n\techo "fail"; exit 1'
+          );
+          return { success: true, message: 'Bug injected' };
+        },
+        fixAttempt: async (buggyDir: string, workspaceDir: string, _prompt: string) => {
+          await cp(buggyDir, workspaceDir, { recursive: true });
+          await writeFile(
+            join(workspaceDir, 'Makefile'),
+            'setup:\n\techo "ready"\ntest:\n\techo "pass"'
+          );
+          return { success: true, message: 'Fix applied' };
+        },
       };
 
       const competitionId = new CompetitionId(`system-events-test-${Date.now()}`);
@@ -396,6 +445,93 @@ describe('SimpleCompetitionRunner', () => {
         e => e.getEventType() === 'competition_completed' && e.getParticipantId().isSystem()
       );
       expect(competitionCompletedEvent).toBeDefined();
+    });
+  });
+
+  describe('Contract compliance', () => {
+    const createCompliantProvider = () => ({
+      name: 'compliant-provider',
+      createCodingExercise: async (workspaceDir: string, _prompt: string) => {
+        await writeFile(
+          join(workspaceDir, 'Makefile'),
+          'setup:\n\techo "ready"\ntest:\n\techo "pass"'
+        );
+        return { success: true, message: 'Created' };
+      },
+      injectBug: async (baselineDir: string, workspaceDir: string, _prompt: string) => {
+        await cp(baselineDir, workspaceDir, { recursive: true });
+        await writeFile(
+          join(workspaceDir, 'Makefile'),
+          'setup:\n\techo "ready"\ntest:\n\techo "fail"; exit 1'
+        );
+        return { success: true, message: 'Bug injected' };
+      },
+      fixAttempt: async (buggyDir: string, workspaceDir: string, _prompt: string) => {
+        await cp(buggyDir, workspaceDir, { recursive: true });
+        await writeFile(
+          join(workspaceDir, 'Makefile'),
+          'setup:\n\techo "ready"\ntest:\n\techo "pass"'
+        );
+        return { success: true, message: 'Fixed' };
+      },
+    });
+
+    const createBadActor = (violation: string) => ({
+      name: `bad-${violation}`,
+      createCodingExercise: async (workspaceDir: string, _prompt: string) => {
+        if (violation !== 'no-makefile') {
+          const makefile =
+            violation === 'no-test'
+              ? 'setup:\n\techo "ready"'
+              : 'setup:\n\techo "ready"\ntest:\n\techo "pass"';
+          await writeFile(join(workspaceDir, 'Makefile'), makefile);
+        }
+        return { success: true, message: 'Created' };
+      },
+      injectBug: async (baselineDir: string, workspaceDir: string, _prompt: string) => {
+        await cp(baselineDir, workspaceDir, { recursive: true });
+        if (violation === 'fake-bug') {
+          await writeFile(
+            join(workspaceDir, 'Makefile'),
+            'setup:\n\techo "ready"\ntest:\n\techo "pass"'
+          );
+        }
+        return { success: true, message: 'Bug injected' };
+      },
+      fixAttempt: async (buggyDir: string, workspaceDir: string, _prompt: string) => {
+        await cp(buggyDir, workspaceDir, { recursive: true });
+        return { success: true, message: 'Fixed' };
+      },
+    });
+
+    it('should complete successfully with compliant provider', async () => {
+      const result = await runner.runCompetition(createCompliantProvider());
+
+      expect(result.isOk()).toBe(true);
+      expect(result._unsafeUnwrap().success).toBe(true);
+    });
+
+    it('should detect provider without Makefile', async () => {
+      const result = await runner.runCompetition(createBadActor('no-makefile'));
+
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toContain('Missing required Makefile');
+    });
+
+    it('should detect provider with fake bug injection', async () => {
+      const result = await runner.runCompetition(createBadActor('fake-bug'));
+
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toContain(
+        'Expected tests to fail after bug injection'
+      );
+    });
+
+    it('should detect provider without test target', async () => {
+      const result = await runner.runCompetition(createBadActor('no-test'));
+
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr().message).toContain('No rule to make target');
     });
   });
 });
