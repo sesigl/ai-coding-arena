@@ -4,12 +4,13 @@
 export class DebugLogger {
   private static isDebugEnabled = process.env.DEBUG === 'true';
 
-  static log(phase: string, message: string, data?: unknown): void {
+  static log(phase: string, message: string, data?: unknown, actor?: string): void {
     if (!this.isDebugEnabled) return;
 
     const timestamp = new Date().toISOString();
+    const actorPrefix = actor ? `${actor}:` : 'SYSTEM:';
     // eslint-disable-next-line no-console
-    console.log(`[DEBUG ${timestamp}] ${phase}: ${message}`);
+    console.log(`[DEBUG ${timestamp}] ${actorPrefix}${phase}: ${message}`);
 
     if (data) {
       // eslint-disable-next-line no-console
@@ -35,9 +36,10 @@ export class DebugLogger {
     process.stdout.write('.');
   }
 
-  static logContent(phase: string, content: string): void {
+  static logContent(phase: string, content: string, actor?: string): void {
     if (!this.isDebugEnabled) return;
+    const prefix = actor ? `[${actor}:${phase}]` : `[${phase}]`;
     // eslint-disable-next-line no-console
-    console.log(`[${phase}] ${content}`);
+    console.log(`${prefix} ${content}`);
   }
 }

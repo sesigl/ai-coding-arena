@@ -225,7 +225,11 @@ Fix the bug now and verify all tests pass.
                     .trim();
                   if (textContent) {
                     hasContent = true;
-                    DebugLogger.logContent(phaseUpper, `${message.type}: ${textContent}`);
+                    DebugLogger.logContent(
+                      phaseUpper,
+                      `${message.type}: ${textContent}`,
+                      'CLAUDE_CODE'
+                    );
                   }
                 }
 
@@ -234,7 +238,8 @@ Fix the bug now and verify all tests pass.
                   toolCalls.forEach((tool: any) => {
                     DebugLogger.logContent(
                       phaseUpper,
-                      `🔧 ${tool.name}: ${JSON.stringify(tool.input)}`
+                      `🔧 ${tool.name}: ${JSON.stringify(tool.input)}`,
+                      'CLAUDE_CODE'
                     );
                   });
                   hasContent = true;
@@ -246,7 +251,7 @@ Fix the bug now and verify all tests pass.
               ) {
                 hasContent = true;
                 const content = message.message.content.trim();
-                DebugLogger.logContent(phaseUpper, `${message.type}: ${content}`);
+                DebugLogger.logContent(phaseUpper, `${message.type}: ${content}`, 'CLAUDE_CODE');
               }
             }
 
@@ -255,7 +260,7 @@ Fix the bug now and verify all tests pass.
             }
           } else if (message.type === 'result' && (message as any).subtype === 'tool_use') {
             const toolName = (message as any).name || 'unknown';
-            DebugLogger.logContent(phaseUpper, `🔧 ${toolName}`);
+            DebugLogger.logContent(phaseUpper, `🔧 ${toolName}`, 'CLAUDE_CODE');
           } else if (message.type === 'result' && (message as any).subtype === 'tool_result') {
             const isError = (message as any).is_error || false;
             const duration = (message as any).duration_ms;
@@ -266,14 +271,19 @@ Fix the bug now and verify all tests pass.
               const errorOutput = (message as any).output || 'No error details';
               DebugLogger.logContent(
                 phaseUpper,
-                `${status} Error${timing}: ${String(errorOutput)}`
+                `${status} Error${timing}: ${String(errorOutput)}`,
+                'CLAUDE_CODE'
               );
             } else {
               const output = (message as any).output;
               if (output && String(output).trim()) {
-                DebugLogger.logContent(phaseUpper, `${status} Success${timing}: ${String(output)}`);
+                DebugLogger.logContent(
+                  phaseUpper,
+                  `${status} Success${timing}: ${String(output)}`,
+                  'CLAUDE_CODE'
+                );
               } else {
-                DebugLogger.logContent(phaseUpper, `${status} Success${timing}`);
+                DebugLogger.logContent(phaseUpper, `${status} Success${timing}`, 'CLAUDE_CODE');
               }
             }
           } else {
