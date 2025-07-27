@@ -225,10 +225,7 @@ Fix the bug now and verify all tests pass.
                     .trim();
                   if (textContent) {
                     hasContent = true;
-                    DebugLogger.logContent(
-                      phaseUpper,
-                      `${message.type}: ${textContent.slice(0, 150)}${textContent.length > 150 ? '...' : ''}`
-                    );
+                    DebugLogger.logContent(phaseUpper, `${message.type}: ${textContent}`);
                   }
                 }
 
@@ -237,7 +234,7 @@ Fix the bug now and verify all tests pass.
                   toolCalls.forEach((tool: any) => {
                     DebugLogger.logContent(
                       phaseUpper,
-                      `🔧 ${tool.name}: ${JSON.stringify(tool.input).slice(0, 100)}...`
+                      `🔧 ${tool.name}: ${JSON.stringify(tool.input)}`
                     );
                   });
                   hasContent = true;
@@ -249,10 +246,7 @@ Fix the bug now and verify all tests pass.
               ) {
                 hasContent = true;
                 const content = message.message.content.trim();
-                DebugLogger.logContent(
-                  phaseUpper,
-                  `${message.type}: ${content.slice(0, 150)}${content.length > 150 ? '...' : ''}`
-                );
+                DebugLogger.logContent(phaseUpper, `${message.type}: ${content}`);
               }
             }
 
@@ -272,10 +266,15 @@ Fix the bug now and verify all tests pass.
               const errorOutput = (message as any).output || 'No error details';
               DebugLogger.logContent(
                 phaseUpper,
-                `${status} Error${timing}: ${String(errorOutput).slice(0, 100)}...`
+                `${status} Error${timing}: ${String(errorOutput)}`
               );
             } else {
-              DebugLogger.logContent(phaseUpper, `${status} Success${timing}`);
+              const output = (message as any).output;
+              if (output && String(output).trim()) {
+                DebugLogger.logContent(phaseUpper, `${status} Success${timing}: ${String(output)}`);
+              } else {
+                DebugLogger.logContent(phaseUpper, `${status} Success${timing}`);
+              }
             }
           } else {
             DebugLogger.logDot();
