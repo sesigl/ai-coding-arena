@@ -203,7 +203,7 @@ Ensure all code integrates cleanly with existing event types from Prompt 1.
 
 ---
 
-## Prompt 3: Minimal Mock Provider
+## Prompt 3: Minimal Mock Provider ✅ COMPLETED
 
 ````
 Create a simple mock LLM provider to enable testing the first competition workflow.
@@ -498,7 +498,7 @@ This provides a simple way to test the complete workflow.
 
 ---
 
-## Prompt 8: Add Claude Code Provider ✅ COMPLETED
+## Prompt 8: Add Claude Code Provider ✅ COMPLETED (Enhanced with Debug Logging)
 
 ```
 
@@ -650,12 +650,12 @@ This simplified implementation plan provides 10 focused prompts that build a com
 
 1. **Project Setup & Event Storage Core** ✅ COMPLETED - Basic TypeScript project with DuckDB event storage
 2. **Event Store Implementation** ✅ COMPLETED - Basic querying capabilities
-3. **Minimal Mock Provider** - Simple provider for testing workflows
-4. **Basic Competition Runner** - Single-participant baseline creation
-5. **Add Bug Injection to Mock Provider** - Two-phase workflow
-6. **Add Fix Attempt Phase** - Complete three-phase workflow
-7. **Simple CLI Interface** - Basic command-line execution
-8. **Add Claude Code Provider** - Real CLI integration
+3. **Minimal Mock Provider** ✅ COMPLETED - Simple provider for testing workflows
+4. **Basic Competition Runner** ✅ COMPLETED - Single-participant baseline creation
+5. **Add Bug Injection to Mock Provider** ✅ COMPLETED - Two-phase workflow
+6. **Add Fix Attempt Phase** ✅ COMPLETED - Complete three-phase workflow
+7. **Simple CLI Interface** ✅ COMPLETED - Basic command-line execution
+8. **Add Claude Code Provider** ✅ COMPLETED (Enhanced) - Real CLI integration with comprehensive debug logging
 9. **Add Results Output** - Basic statistics and reporting
 10. **Add Multi-Participant Support** - Multiple providers in one competition
 

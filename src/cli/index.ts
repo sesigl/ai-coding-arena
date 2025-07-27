@@ -8,6 +8,7 @@ import { MockProvider } from 'providers/mock-provider/mock-provider';
 import { ClaudeCodeProvider } from 'providers/claude-code-provider/claude-code-provider';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { CompetitionId } from 'domain/competition-event/competition-id';
+import { ResultsFormatter } from 'results/formatter';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
@@ -64,6 +65,21 @@ export async function runCompetition(
         console.log('❌ Competition failed');
         console.log(`📝 Error: ${competitionResult.message}`);
         console.log(`👤 Participant: ${competitionResult.participantId}`);
+      }
+
+      // Show results summary
+      console.log('\n📊 Competition Results:');
+      const formatter = new ResultsFormatter(eventStore);
+      const resultsResult = await formatter.formatCompetitionResults(competitionId);
+
+      if (resultsResult.isOk()) {
+        const summary = resultsResult.value;
+        console.log(formatter.formatAsJson(summary));
+      } else {
+        console.error('⚠️  Failed to generate results:', resultsResult.error.message);
+      }
+
+      if (!competitionResult.success) {
         process.exit(1);
       }
     } else {
