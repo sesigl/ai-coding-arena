@@ -5,11 +5,14 @@ import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { query, type SDKMessage } from '@anthropic-ai/claude-code';
 import { cp } from 'fs/promises';
 import { setTimeout as nodeSetTimeout, clearTimeout } from 'timers';
+import { DebugLogger } from 'utils/debug-logger';
 
 export class ClaudeCodeProvider implements LLMProvider {
   readonly name = 'claude-code';
 
   async createCodingExercise(workspaceDir: string): Promise<{ success: boolean; message: string }> {
+    DebugLogger.logPhaseStart('BASELINE_CREATION', `Creating baseline project in ${workspaceDir}`);
+
     const prompt = `I need you to create a complete TypeScript calculator project. Please create ALL files immediately without asking for permission.
 
 **REQUIRED FILES TO CREATE:**
@@ -50,21 +53,37 @@ export class ClaudeCodeProvider implements LLMProvider {
 4. **src/calculator.test.ts:** Comprehensive tests for all methods  
 5. **vitest.config.ts:** Test configuration
 
-**ACTION REQUIRED:** Use the Write tool to create each file. Do not ask for permission - just create them now. Make the calculator robust with proper error handling and comprehensive tests.`;
+**ACTION REQUIRED:** Use the Write tool to create each file. Do not ask for permission - just create them now. Make the calculator robust with proper error handling and comprehensive tests.
 
-    return this.executeQuery(workspaceDir, prompt, 'baseline creation');
+**IMPORTANT TESTING INSTRUCTIONS:**
+- After creating all files, run the tests to verify everything works
+- For Vitest projects, ALWAYS use: \`CI=true vitest\` (never just \`vitest\` or \`npm test\`)
+- The CI=true flag prevents interactive prompts that would hang the process
+- Verify all tests pass before completing the task`;
+
+    const result = await this.executeQuery(workspaceDir, prompt, 'baseline creation');
+    DebugLogger.logPhaseEnd('BASELINE_CREATION', result.success, result.message);
+    return result;
   }
 
   async injectBug(
     baselineDir: string,
     workspaceDir: string
   ): Promise<{ success: boolean; message: string }> {
+    DebugLogger.logPhaseStart(
+      'BUG_INJECTION',
+      `Copying baseline from ${baselineDir} to ${workspaceDir}`
+    );
+
     try {
       await cp(baselineDir, workspaceDir, { recursive: true, force: true });
+      DebugLogger.logProgress('BUG_INJECTION', 'Baseline files copied successfully');
     } catch (error) {
+      const errorMsg = `Failed to copy baseline: ${error instanceof Error ? error.message : String(error)}`;
+      DebugLogger.logPhaseEnd('BUG_INJECTION', false, errorMsg);
       return {
         success: false,
-        message: `Failed to copy baseline: ${error instanceof Error ? error.message : String(error)}`,
+        message: errorMsg,
       };
     }
 
@@ -87,21 +106,34 @@ export class ClaudeCodeProvider implements LLMProvider {
 - The bug should look like a real programming mistake
 - Don't make it too obvious - it should require some analysis to find
 
-Inject the bug now and run tests to confirm they fail.`;
+Inject the bug now and run tests to confirm they fail.
 
-    return this.executeQuery(workspaceDir, prompt, 'bug injection');
+**TESTING INSTRUCTIONS:** Use \`CI=true vitest\` to run tests (prevents hanging on interactive prompts).`;
+
+    DebugLogger.logProgress('BUG_INJECTION', 'Starting bug injection with Claude Code');
+    const result = await this.executeQuery(workspaceDir, prompt, 'bug injection');
+    DebugLogger.logPhaseEnd('BUG_INJECTION', result.success, result.message);
+    return result;
   }
 
   async fixAttempt(
     buggyDir: string,
     workspaceDir: string
   ): Promise<{ success: boolean; message: string }> {
+    DebugLogger.logPhaseStart(
+      'FIX_ATTEMPT',
+      `Copying buggy code from ${buggyDir} to ${workspaceDir}`
+    );
+
     try {
       await cp(buggyDir, workspaceDir, { recursive: true, force: true });
+      DebugLogger.logProgress('FIX_ATTEMPT', 'Buggy files copied successfully');
     } catch (error) {
+      const errorMsg = `Failed to copy buggy code: ${error instanceof Error ? error.message : String(error)}`;
+      DebugLogger.logPhaseEnd('FIX_ATTEMPT', false, errorMsg);
       return {
         success: false,
-        message: `Failed to copy buggy code: ${error instanceof Error ? error.message : String(error)}`,
+        message: errorMsg,
       };
     }
 
@@ -125,9 +157,14 @@ Inject the bug now and run tests to confirm they fail.`;
 - Don't change the tests, only fix the source code
 - Make sure your fix handles all the edge cases the tests cover
 
-Fix the bug now and verify all tests pass.`;
+Fix the bug now and verify all tests pass.
 
-    return this.executeQuery(workspaceDir, prompt, 'fix attempt');
+**TESTING INSTRUCTIONS:** Use \`CI=true vitest\` to run tests (prevents hanging on interactive prompts).`;
+
+    DebugLogger.logProgress('FIX_ATTEMPT', 'Starting bug fix with Claude Code');
+    const result = await this.executeQuery(workspaceDir, prompt, 'fix attempt');
+    DebugLogger.logPhaseEnd('FIX_ATTEMPT', result.success, result.message);
+    return result;
   }
 
   private async executeQuery(
@@ -135,6 +172,8 @@ Fix the bug now and verify all tests pass.`;
     prompt: string,
     phase: string
   ): Promise<{ success: boolean; message: string }> {
+    const phaseUpper = phase.toUpperCase().replace(' ', '_');
+
     try {
       const messages: SDKMessage[] = [];
       const abortController = new AbortController();
@@ -143,7 +182,14 @@ Fix the bug now and verify all tests pass.`;
         abortController.abort();
       }, 180000); // 3 minutes for complex thinking
 
+      DebugLogger.logProgress(phaseUpper, 'Starting Claude Code conversation', {
+        workspaceDir,
+        maxTurns: 15,
+        timeoutMs: 180000,
+      });
+
       try {
+        let messageCount = 0;
         for await (const message of query({
           prompt,
           abortController,
@@ -156,11 +202,88 @@ Fix the bug now and verify all tests pass.`;
           },
         })) {
           messages.push(message);
+          messageCount++;
+
+          // Log key message types for visibility
+          if (message.type === 'user' || message.type === 'assistant') {
+            // Extract content from the message object
+            let contentPreview = 'No content';
+            let toolCalls: any[] = [];
+
+            if (message.message && typeof message.message === 'object') {
+              if ('content' in message.message && Array.isArray(message.message.content)) {
+                // Handle content array (anthropic message format)
+                const textParts = message.message.content.filter((c: any) => c.type === 'text');
+                const toolUseParts = message.message.content.filter(
+                  (c: any) => c.type === 'tool_use'
+                );
+
+                if (textParts.length > 0) {
+                  const textContent = textParts
+                    .map((c: any) => c.text)
+                    .join(' ')
+                    .slice(0, 200);
+                  contentPreview = textContent + (textContent.length === 200 ? '...' : '');
+                }
+
+                if (toolUseParts.length > 0) {
+                  toolCalls = toolUseParts.map((c: any) => ({
+                    name: c.name,
+                    input: typeof c.input === 'string' ? c.input.slice(0, 100) + '...' : c.input,
+                  }));
+                }
+              } else if (
+                'content' in message.message &&
+                typeof message.message.content === 'string'
+              ) {
+                contentPreview =
+                  message.message.content.slice(0, 200) +
+                  (message.message.content.length > 200 ? '...' : '');
+              }
+            }
+
+            DebugLogger.logProgress(phaseUpper, `Message ${messageCount} (${message.type})`, {
+              contentPreview: contentPreview || 'Empty content',
+              role: (message.message as any)?.role || 'unknown',
+              toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+              hasToolCalls: toolCalls.length > 0,
+            });
+          } else if (message.type === 'result' && (message as any).subtype === 'tool_use') {
+            DebugLogger.logProgress(phaseUpper, `Tool use: ${(message as any).name || 'unknown'}`, {
+              messageCount,
+              toolName: (message as any).name,
+            });
+          } else if (message.type === 'result' && (message as any).subtype === 'tool_result') {
+            const isError = (message as any).is_error || false;
+            const outputPreview = (message as any).output
+              ? String((message as any).output).slice(0, 200) + '...'
+              : 'No output';
+
+            DebugLogger.logProgress(phaseUpper, `Tool result: ${isError ? 'ERROR' : 'SUCCESS'}`, {
+              messageCount,
+              isError,
+              duration_ms: (message as any).duration_ms,
+              outputPreview,
+            });
+          } else {
+            // Log the full message structure for unknown types
+            DebugLogger.logProgress(phaseUpper, `Message ${messageCount} (${message.type})`, {
+              subtype: 'subtype' in message ? (message as any).subtype : undefined,
+              messageStructure: Object.keys(message),
+            });
+          }
         }
 
         clearTimeout(timeout);
 
+        DebugLogger.logProgress(phaseUpper, `Conversation completed with ${messageCount} messages`);
+
         const success = this.determineSuccess(messages, phase);
+
+        DebugLogger.logProgress(phaseUpper, `Success determination: ${success}`, {
+          totalMessages: messageCount,
+          phase,
+        });
 
         return {
           success,
@@ -175,12 +298,16 @@ Fix the bug now and verify all tests pass.`;
         clearTimeout(timeout);
 
         if (abortController.signal.aborted) {
+          DebugLogger.logProgress(phaseUpper, 'Conversation timed out after 3 minutes');
           return {
             success: false,
             message: `Claude Code ${phase} timed out after 3 minutes`,
           };
         }
 
+        DebugLogger.logProgress(phaseUpper, 'Conversation error', {
+          error: error instanceof Error ? error.message : String(error),
+        });
         throw error;
       }
     } catch (error) {

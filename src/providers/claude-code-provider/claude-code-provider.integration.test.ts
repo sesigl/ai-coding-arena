@@ -6,6 +6,7 @@ import { ClaudeCodeProvider } from './claude-code-provider';
 import { createWorkspace, cleanupWorkspace } from 'infrastructure/workspace/workspace';
 import { readFile, access } from 'fs/promises';
 import { join } from 'path';
+import { DebugLogger } from 'utils/debug-logger';
 
 const INTEGRATION_TESTS_ENABLED = process.env.ENABLE_CLAUDE_INTEGRATION_TESTS === 'true';
 
@@ -18,13 +19,13 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
 
   describe('full competition workflow with real Claude Code', () => {
     it('should create a complete, testable baseline project', async () => {
+      DebugLogger.logPhaseStart('TEST_BASELINE', 'Integration test: baseline creation');
       const workspaceDir = await createWorkspace('integration-baseline');
 
       try {
         const result = await provider.createCodingExercise(workspaceDir);
 
-        // Log result for debugging
-        console.log('Baseline creation result:', result);
+        DebugLogger.logProgress('TEST_BASELINE', 'Claude Code execution completed', result);
 
         if (!result.success) {
           throw new Error(`Baseline creation failed: ${result.message}`);
@@ -47,27 +48,36 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
         const packageJson = JSON.parse(await readFile(join(workspaceDir, 'package.json'), 'utf-8'));
         expect(packageJson.devDependencies).toHaveProperty('vitest');
         expect(packageJson.devDependencies).toHaveProperty('typescript');
+
+        DebugLogger.logPhaseEnd('TEST_BASELINE', true, 'Baseline creation test passed');
       } finally {
         await cleanupWorkspace(workspaceDir);
       }
     }, 300000); // 5 minute timeout for real Claude Code
 
     it('should inject a realistic bug that breaks tests', async () => {
+      DebugLogger.logPhaseStart('TEST_BUG_INJECTION', 'Integration test: bug injection workflow');
       const baselineDir = await createWorkspace('integration-baseline-for-bug');
       const bugWorkspace = await createWorkspace('integration-bug');
 
       try {
         // First create baseline
+        DebugLogger.logProgress('TEST_BUG_INJECTION', 'Creating baseline for bug injection test');
         const baselineResult = await provider.createCodingExercise(baselineDir);
-        console.log('Bug test baseline creation result:', baselineResult);
+        DebugLogger.logProgress(
+          'TEST_BUG_INJECTION',
+          'Baseline creation completed',
+          baselineResult
+        );
 
         if (!baselineResult.success) {
           throw new Error(`Baseline creation failed: ${baselineResult.message}`);
         }
 
         // Then inject bug
+        DebugLogger.logProgress('TEST_BUG_INJECTION', 'Starting bug injection');
         const bugResult = await provider.injectBug(baselineDir, bugWorkspace);
-        console.log('Bug injection result:', bugResult);
+        DebugLogger.logProgress('TEST_BUG_INJECTION', 'Bug injection completed', bugResult);
 
         if (!bugResult.success) {
           throw new Error(`Bug injection failed: ${bugResult.message}`);
@@ -92,6 +102,8 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
             // File might not exist depending on Claude's implementation choice
           }
         }
+
+        DebugLogger.logPhaseEnd('TEST_BUG_INJECTION', true, 'Bug injection test passed');
       } finally {
         await cleanupWorkspace(baselineDir);
         await cleanupWorkspace(bugWorkspace);
