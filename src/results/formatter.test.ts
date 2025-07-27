@@ -2,7 +2,7 @@
 // Validates JSON output, statistics calculation, and error handling
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { ResultsFormatter } from './formatter';
+import { ResultsFormatter, CompetitionSummary } from './formatter';
 import { EventStore } from 'infrastructure/event-store/event-store';
 import { CompetitionEventFactory } from 'test-utils/competition-event-factory';
 import { CompetitionId } from 'domain/competition-event/competition-id';
@@ -20,170 +20,51 @@ describe('ResultsFormatter', () => {
   let competitionId: CompetitionId;
 
   beforeEach(async () => {
-    dbPath = join(tmpdir(), `test-${Date.now()}-${Math.random()}.db`);
-    eventStore = new EventStore(dbPath);
-    const initResult = await eventStore.initialize();
-    if (initResult.isErr()) {
-      throw initResult.error;
-    }
-    formatter = new ResultsFormatter(eventStore);
-    competitionId = new CompetitionId(`test-competition-${Date.now()}`);
+    await setupTestEnvironment();
   });
 
   afterEach(async () => {
-    await eventStore.close();
-    try {
-      await unlink(dbPath);
-    } catch {
-      // Ignore cleanup errors
-    }
+    await cleanupTestEnvironment();
   });
 
   describe('formatCompetitionResults', () => {
     it('should format empty competition correctly', async () => {
-      const result = await formatter.formatCompetitionResults(competitionId);
+      const summary = await formatCompetitionResults();
 
-      expect(result.isOk()).toBe(true);
-      const summary = result._unsafeUnwrap();
-
-      expect(summary.competitionId).toBe(competitionId.getValue());
-      expect(summary.participants).toEqual([]);
-      expect(summary.phases).toEqual([]);
-      expect(summary.statistics.totalPhases).toBe(0);
-      expect(summary.statistics.successRate).toBe(0);
+      expectEmptyCompetition(summary);
     });
 
     it('should format single participant competition correctly', async () => {
-      const participantId = ParticipantId.fromString('claude-code');
+      const participantId = createParticipant('claude-code');
+      await insertThreePhaseCompetition(participantId);
 
-      // Insert just the phase completion events
-      const baselineCompleted = CompetitionEventFactory.create({
-        competitionId: competitionId.getValue(),
-        participantId: participantId.getValue(),
-        eventType: EventType.BASELINE_COMPLETED,
-        phase: Phase.BASELINE,
-        success: true,
-        data: { message: 'Baseline created successfully' },
-      });
-      const insertResult1 = await eventStore.insertEvent(baselineCompleted);
-      expect(insertResult1.isOk()).toBe(true);
+      const summary = await formatCompetitionResults();
 
-      const bugInjectionCompleted = CompetitionEventFactory.create({
-        id: 'test-id-2',
-        competitionId: competitionId.getValue(),
-        participantId: participantId.getValue(),
-        eventType: EventType.BUG_INJECTION_COMPLETED,
-        phase: Phase.BUG_INJECTION,
-        success: true,
-        data: { message: 'Bug injected successfully' },
-      });
-      const insertResult2 = await eventStore.insertEvent(bugInjectionCompleted);
-      expect(insertResult2.isOk()).toBe(true);
-
-      const fixAttemptCompleted = CompetitionEventFactory.create({
-        id: 'test-id-3',
-        competitionId: competitionId.getValue(),
-        participantId: participantId.getValue(),
-        eventType: EventType.FIX_ATTEMPT_COMPLETED,
-        phase: Phase.FIX_ATTEMPT,
-        success: false,
-        data: { message: 'Fix attempt failed' },
-      });
-      const insertResult3 = await eventStore.insertEvent(fixAttemptCompleted);
-      expect(insertResult3.isOk()).toBe(true);
-
-      const result = await formatter.formatCompetitionResults(competitionId);
-
-      expect(result.isOk()).toBe(true);
-      const summary = result._unsafeUnwrap();
-
-      expect(summary.competitionId).toBe(competitionId.getValue());
-      expect(summary.participants).toEqual(['claude-code']);
-      expect(summary.phases).toHaveLength(3);
-      expect(summary.statistics.totalPhases).toBe(3);
-      expect(summary.statistics.successfulPhases).toBe(2);
-      expect(summary.statistics.failedPhases).toBe(1);
-      expect(summary.statistics.successRate).toBeCloseTo(2 / 3);
-
-      const participantStats = summary.statistics.participantStats['claude-code'];
-      expect(participantStats).toBeDefined();
-      expect(participantStats?.totalPhases).toBe(3);
-      expect(participantStats?.successfulPhases).toBe(2);
-      expect(participantStats?.successRate).toBeCloseTo(2 / 3);
-      expect(participantStats?.phases.baseline).toBe(true);
-      expect(participantStats?.phases.bugInjection).toBe(true);
-      expect(participantStats?.phases.fixAttempt).toBe(false);
+      expectSingleParticipantWithThreePhases(summary, participantId);
     });
 
     it('should handle multiple participants correctly', async () => {
-      const participant1 = ParticipantId.fromString('claude-code');
-      const participant2 = ParticipantId.fromString('mock-provider');
+      const successfulParticipant = createParticipant('claude-code');
+      const failedParticipant = createParticipant('mock-provider');
 
-      // Insert events for first participant
-      const baseline1 = CompetitionEventFactory.create({
-        id: 'multi-test-1',
-        competitionId: competitionId.getValue(),
-        participantId: participant1.getValue(),
-        eventType: EventType.BASELINE_COMPLETED,
-        phase: Phase.BASELINE,
-        success: true,
-        data: { message: 'Success' },
-      });
-      await eventStore.insertEvent(baseline1);
+      await insertBaselineEvent(successfulParticipant, true);
+      await insertBaselineEvent(failedParticipant, false);
 
-      // Insert events for second participant
-      const baseline2 = CompetitionEventFactory.create({
-        id: 'multi-test-2',
-        competitionId: competitionId.getValue(),
-        participantId: participant2.getValue(),
-        eventType: EventType.BASELINE_COMPLETED,
-        phase: Phase.BASELINE,
-        success: false,
-        data: { message: 'Failed' },
-      });
-      await eventStore.insertEvent(baseline2);
+      const summary = await formatCompetitionResults();
 
-      const result = await formatter.formatCompetitionResults(competitionId);
-
-      expect(result.isOk()).toBe(true);
-      const summary = result._unsafeUnwrap();
-
-      expect(summary.participants).toEqual(['claude-code', 'mock-provider']);
-      expect(summary.phases).toHaveLength(2);
-      expect(summary.statistics.totalPhases).toBe(2);
-      expect(summary.statistics.successfulPhases).toBe(1);
-      expect(summary.statistics.successRate).toBe(0.5);
-
-      expect(summary.statistics.participantStats['claude-code']?.successRate).toBe(1);
-      expect(summary.statistics.participantStats['mock-provider']?.successRate).toBe(0);
+      expectMultipleParticipants(summary, successfulParticipant, failedParticipant);
     });
   });
 
   describe('formatAsJson', () => {
     it('should format summary as valid JSON', async () => {
-      const participantId = ParticipantId.fromString('claude-code');
+      const participantId = createParticipant('claude-code');
+      await insertBaselineEvent(participantId, true);
 
-      const baselineCompleted = CompetitionEventFactory.create({
-        competitionId: competitionId.getValue(),
-        participantId: participantId.getValue(),
-        eventType: EventType.BASELINE_COMPLETED,
-        phase: Phase.BASELINE,
-        success: true,
-        data: { message: 'Success' },
-      });
-      await eventStore.insertEvent(baselineCompleted);
-
-      const result = await formatter.formatCompetitionResults(competitionId);
-      const summary = result._unsafeUnwrap();
-
+      const summary = await formatCompetitionResults();
       const json = formatter.formatAsJson(summary);
 
-      // Should be valid JSON
-      expect(() => JSON.parse(json)).not.toThrow();
-
-      const parsed = JSON.parse(json);
-      expect(parsed.competitionId).toBe(competitionId.getValue());
-      expect(parsed.participants).toEqual(['claude-code']);
+      expectValidJson(json, participantId);
     });
   });
 
@@ -197,4 +78,212 @@ describe('ResultsFormatter', () => {
       expect(result._unsafeUnwrapErr().message).toContain('Database not initialized');
     });
   });
+
+  // Setup and teardown helpers
+  async function setupTestEnvironment(): Promise<void> {
+    dbPath = createUniqueDbPath();
+    eventStore = new EventStore(dbPath);
+    await initializeEventStore();
+    formatter = new ResultsFormatter(eventStore);
+    competitionId = createUniqueCompetitionId();
+  }
+
+  async function cleanupTestEnvironment(): Promise<void> {
+    await eventStore.close();
+    await deleteDbFile();
+  }
+
+  function createUniqueDbPath(): string {
+    return join(tmpdir(), `test-${Date.now()}-${Math.random()}.db`);
+  }
+
+  async function initializeEventStore(): Promise<void> {
+    const initResult = await eventStore.initialize();
+    if (initResult.isErr()) {
+      throw initResult.error;
+    }
+  }
+
+  function createUniqueCompetitionId(): CompetitionId {
+    return new CompetitionId(`test-competition-${Date.now()}`);
+  }
+
+  async function deleteDbFile(): Promise<void> {
+    try {
+      await unlink(dbPath);
+    } catch {
+      // Ignore cleanup errors
+    }
+  }
+
+  // Test data creation helpers
+  function createParticipant(name: string): ParticipantId {
+    return ParticipantId.fromString(name);
+  }
+
+  async function insertThreePhaseCompetition(participantId: ParticipantId): Promise<void> {
+    await insertBaselineEvent(participantId, true);
+    await insertBugInjectionEvent(participantId, true);
+    await insertFixAttemptEvent(participantId, false);
+  }
+
+  async function insertBaselineEvent(
+    participantId: ParticipantId,
+    success: boolean
+  ): Promise<void> {
+    const event = createPhaseCompletionEvent(
+      participantId,
+      EventType.BASELINE_COMPLETED,
+      Phase.BASELINE,
+      success,
+      success ? 'Baseline created successfully' : 'Baseline failed'
+    );
+    await insertEventAndVerify(event);
+  }
+
+  async function insertBugInjectionEvent(
+    participantId: ParticipantId,
+    success: boolean
+  ): Promise<void> {
+    const event = createPhaseCompletionEvent(
+      participantId,
+      EventType.BUG_INJECTION_COMPLETED,
+      Phase.BUG_INJECTION,
+      success,
+      success ? 'Bug injected successfully' : 'Bug injection failed'
+    );
+    await insertEventAndVerify(event);
+  }
+
+  async function insertFixAttemptEvent(
+    participantId: ParticipantId,
+    success: boolean
+  ): Promise<void> {
+    const event = createPhaseCompletionEvent(
+      participantId,
+      EventType.FIX_ATTEMPT_COMPLETED,
+      Phase.FIX_ATTEMPT,
+      success,
+      success ? 'Fix applied successfully' : 'Fix attempt failed'
+    );
+    await insertEventAndVerify(event);
+  }
+
+  function createPhaseCompletionEvent(
+    participantId: ParticipantId,
+    eventType: EventType,
+    phase: Phase,
+    success: boolean,
+    message: string
+  ) {
+    return CompetitionEventFactory.create({
+      id: `${eventType}-${participantId.getValue()}-${Date.now()}`,
+      competitionId: competitionId.getValue(),
+      participantId: participantId.getValue(),
+      eventType,
+      phase,
+      success,
+      data: { message },
+    });
+  }
+
+  async function insertEventAndVerify(
+    event: ReturnType<typeof CompetitionEventFactory.create>
+  ): Promise<void> {
+    const result = await eventStore.insertEvent(event);
+    expect(result.isOk()).toBe(true);
+  }
+
+  // Test execution helpers
+  async function formatCompetitionResults() {
+    const result = await formatter.formatCompetitionResults(competitionId);
+    expect(result.isOk()).toBe(true);
+    return result._unsafeUnwrap();
+  }
+
+  // Assertion helpers
+  function expectEmptyCompetition(summary: CompetitionSummary): void {
+    expect(summary.competitionId).toBe(competitionId.getValue());
+    expect(summary.participants).toEqual([]);
+    expect(summary.phases).toEqual([]);
+    expect(summary.statistics.totalPhases).toBe(0);
+    expect(summary.statistics.successRate).toBe(0);
+  }
+
+  function expectSingleParticipantWithThreePhases(
+    summary: CompetitionSummary,
+    participantId: ParticipantId
+  ): void {
+    expect(summary.competitionId).toBe(competitionId.getValue());
+    expect(summary.participants).toEqual([participantId.getValue()]);
+    expect(summary.phases).toHaveLength(3);
+
+    expectOverallStatistics(summary, 3, 2, 1, 2 / 3);
+    expectParticipantStatistics(summary, participantId.getValue(), 3, 2, 2 / 3);
+    expectParticipantPhases(summary, participantId.getValue(), true, true, false);
+  }
+
+  function expectMultipleParticipants(
+    summary: CompetitionSummary,
+    successfulParticipant: ParticipantId,
+    failedParticipant: ParticipantId
+  ): void {
+    expect(summary.participants).toEqual([
+      successfulParticipant.getValue(),
+      failedParticipant.getValue(),
+    ]);
+    expect(summary.phases).toHaveLength(2);
+
+    expectOverallStatistics(summary, 2, 1, 1, 0.5);
+    expectParticipantStatistics(summary, successfulParticipant.getValue(), 1, 1, 1);
+    expectParticipantStatistics(summary, failedParticipant.getValue(), 1, 0, 0);
+  }
+
+  function expectOverallStatistics(
+    summary: CompetitionSummary,
+    totalPhases: number,
+    successfulPhases: number,
+    failedPhases: number,
+    successRate: number
+  ): void {
+    expect(summary.statistics.totalPhases).toBe(totalPhases);
+    expect(summary.statistics.successfulPhases).toBe(successfulPhases);
+    expect(summary.statistics.failedPhases).toBe(failedPhases);
+    expect(summary.statistics.successRate).toBeCloseTo(successRate);
+  }
+
+  function expectParticipantStatistics(
+    summary: CompetitionSummary,
+    participantName: string,
+    totalPhases: number,
+    successfulPhases: number,
+    successRate: number
+  ): void {
+    const participantStats = summary.statistics.participantStats[participantName];
+    expect(participantStats).toBeDefined();
+    expect(participantStats?.totalPhases).toBe(totalPhases);
+    expect(participantStats?.successfulPhases).toBe(successfulPhases);
+    expect(participantStats?.successRate).toBeCloseTo(successRate);
+  }
+
+  function expectParticipantPhases(
+    summary: CompetitionSummary,
+    participantName: string,
+    baseline: boolean,
+    bugInjection: boolean,
+    fixAttempt: boolean
+  ): void {
+    const participantStats = summary.statistics.participantStats[participantName];
+    expect(participantStats?.phases.baseline).toBe(baseline);
+    expect(participantStats?.phases.bugInjection).toBe(bugInjection);
+    expect(participantStats?.phases.fixAttempt).toBe(fixAttempt);
+  }
+
+  function expectValidJson(json: string, participantId: ParticipantId): void {
+    expect(() => JSON.parse(json)).not.toThrow();
+
+    const parsed = JSON.parse(json);
+    expect(parsed.competitionId).toBe(competitionId.getValue());
+    expect(parsed.participants).toEqual([participantId.getValue()]);
+  }
 });
