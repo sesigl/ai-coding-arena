@@ -141,16 +141,13 @@ describe('SimpleCompetitionRunner', () => {
 
   describe('end-to-end competition behavior with results integration', () => {
     it('should execute complete competition and generate expected results summary', async () => {
-      // Given: A competition runner with real components (no mocks)
       const competitionId = new CompetitionId(`integration-test-${Date.now()}`);
       const runner = new SimpleCompetitionRunner(eventStore, competitionId);
       const mockProvider = new MockProvider();
       const resultsFormatter = new ResultsFormatter(eventStore);
 
-      // When: Running a complete competition
       const competitionResult = await runner.runCompetition(mockProvider);
 
-      // Then: Competition should succeed
       expect(competitionResult.isOk()).toBe(true);
 
       const result = competitionResult._unsafeUnwrap();
@@ -158,17 +155,14 @@ describe('SimpleCompetitionRunner', () => {
       expect(result.participantId).toBe('mock-provider');
       expect(result.message).toContain('Three-phase workflow completed');
 
-      // And: Results summary should capture complete competition behavior
       const summaryResult = await resultsFormatter.formatCompetitionResults(competitionId);
       expect(summaryResult.isOk()).toBe(true);
 
       const summary = summaryResult._unsafeUnwrap();
 
-      // Verify competition identity
       expect(summary.competitionId).toBe(competitionId.getValue());
       expect(summary.participants).toEqual(['mock-provider']);
 
-      // Verify all three phases were executed successfully
       expect(summary.phases).toHaveLength(3);
 
       const baselinePhase = summary.phases.find(p => p.phase === 'baseline');
@@ -187,13 +181,11 @@ describe('SimpleCompetitionRunner', () => {
       expect(fixAttemptPhase?.success).toBe(true);
       expect(fixAttemptPhase?.participant).toBe('mock-provider');
 
-      // Verify overall statistics reflect successful competition
       expect(summary.statistics.totalPhases).toBe(3);
       expect(summary.statistics.successfulPhases).toBe(3);
       expect(summary.statistics.failedPhases).toBe(0);
       expect(summary.statistics.successRate).toBe(1.0);
 
-      // Verify participant-specific statistics
       const participantStats = summary.statistics.participantStats['mock-provider'];
       expect(participantStats).toBeDefined();
       expect(participantStats?.totalPhases).toBe(3);
@@ -203,7 +195,6 @@ describe('SimpleCompetitionRunner', () => {
       expect(participantStats?.phases.bugInjection).toBe(true);
       expect(participantStats?.phases.fixAttempt).toBe(true);
 
-      // Verify JSON serialization works correctly
       const jsonOutput = resultsFormatter.formatAsJson(summary);
       expect(() => JSON.parse(jsonOutput)).not.toThrow();
 
@@ -212,14 +203,11 @@ describe('SimpleCompetitionRunner', () => {
       expect(parsedJson.statistics.successRate).toBe(1.0);
       expect(parsedJson.participants).toEqual(['mock-provider']);
 
-      // Verify event trail exists for audit purposes
       const eventsResult = await eventStore.getEventsByCompetition(competitionId);
       expect(eventsResult.isOk()).toBe(true);
 
       const events = eventsResult._unsafeUnwrap();
-      expect(events.length).toBeGreaterThanOrEqual(6); // At least start/end for each phase
-
-      // Verify critical events are present
+      expect(events.length).toBeGreaterThanOrEqual(6);
       const criticalEventTypes = [
         'baseline_creation_started',
         'baseline_completed',
@@ -240,7 +228,6 @@ describe('SimpleCompetitionRunner', () => {
     });
 
     it('should handle partial failure and reflect it in results summary', async () => {
-      // Given: A provider that fails at bug injection phase
       const partialFailureProvider = {
         name: 'partial-failure-provider',
         createCodingExercise: async () => ({
@@ -258,24 +245,19 @@ describe('SimpleCompetitionRunner', () => {
       const runner = new SimpleCompetitionRunner(eventStore, competitionId);
       const resultsFormatter = new ResultsFormatter(eventStore);
 
-      // When: Running the competition
       const competitionResult = await runner.runCompetition(partialFailureProvider);
-
-      // Then: Competition should fail at bug injection
       expect(competitionResult.isOk()).toBe(true);
 
       const result = competitionResult._unsafeUnwrap();
       expect(result.success).toBe(false);
       expect(result.message).toContain('Bug injection failed');
 
-      // And: Results summary should accurately reflect the partial failure
       const summaryResult = await resultsFormatter.formatCompetitionResults(competitionId);
       expect(summaryResult.isOk()).toBe(true);
 
       const summary = summaryResult._unsafeUnwrap();
 
-      // Should show only completed phases (baseline succeeded, bug injection failed, fix not attempted)
-      expect(summary.phases).toHaveLength(2); // Only baseline and bug injection attempted
+      expect(summary.phases).toHaveLength(2);
 
       const baselinePhase = summary.phases.find(p => p.phase === 'baseline');
       expect(baselinePhase?.success).toBe(true);
@@ -283,17 +265,13 @@ describe('SimpleCompetitionRunner', () => {
       const bugInjectionPhase = summary.phases.find(p => p.phase === 'bug_injection');
       expect(bugInjectionPhase?.success).toBe(false);
 
-      // No fix attempt phase should be present since it wasn't reached
       const fixAttemptPhase = summary.phases.find(p => p.phase === 'fix_attempt');
       expect(fixAttemptPhase).toBeUndefined();
 
-      // Statistics should reflect partial completion
       expect(summary.statistics.totalPhases).toBe(2);
       expect(summary.statistics.successfulPhases).toBe(1);
       expect(summary.statistics.failedPhases).toBe(1);
       expect(summary.statistics.successRate).toBe(0.5);
-
-      // Participant stats should show mixed results
       const participantStats = summary.statistics.participantStats['partial-failure-provider'];
       expect(participantStats?.phases.baseline).toBe(true);
       expect(participantStats?.phases.bugInjection).toBe(false);
@@ -323,13 +301,11 @@ describe('SimpleCompetitionRunner', () => {
         expect(multiResult.overallSuccess).toBe(true);
         expect(multiResult.participantResults).toHaveLength(2);
 
-        // Check first participant
         const result1 = multiResult.participantResults[0];
         expect(result1).toBeDefined();
         expect(result1?.participantId).toBe('mock-provider');
         expect(result1?.success).toBe(true);
 
-        // Check second participant
         const result2 = multiResult.participantResults[1];
         expect(result2).toBeDefined();
         expect(result2?.participantId).toBe('mock-provider-2');
@@ -364,13 +340,11 @@ describe('SimpleCompetitionRunner', () => {
         expect(multiResult.overallSuccess).toBe(false);
         expect(multiResult.participantResults).toHaveLength(2);
 
-        // Check successful participant
         const successResult = multiResult.participantResults.find(
           r => r.participantId === 'mock-provider'
         );
         expect(successResult?.success).toBe(true);
 
-        // Check failed participant
         const failureResult = multiResult.participantResults.find(
           r => r.participantId === 'failing-provider'
         );
@@ -413,7 +387,6 @@ describe('SimpleCompetitionRunner', () => {
 
       const events = eventsResult._unsafeUnwrap();
 
-      // Check for system events
       const competitionStartEvent = events.find(
         e => e.getEventType() === 'competition_started' && e.getParticipantId().isSystem()
       );

@@ -49,45 +49,67 @@ export async function runCompetition(
 
     const competitionId = new CompetitionId(`comp-${Date.now()}`);
     const runner = new SimpleCompetitionRunner(eventStore, competitionId);
-
-    // Create providers from names
     const providers = providerNames.map(name => createProvider(name));
 
-    if (providers.length === 1) {
-      // Single participant competition
-      const provider = providers[0];
-      if (!provider) {
-        throw new Error('Provider not found at index 0');
-      }
-      console.log(`🚀 Running single-participant competition with ${provider.name}...`);
-
-      const result = await runner.runCompetition(provider);
-
-      if (result.isOk()) {
-        await handleSingleParticipantResult(result.value, competitionId, eventStore);
-      } else {
-        console.error('💥 Competition error:', result.error.message);
-        process.exit(1);
-      }
-    } else {
-      // Multi-participant competition
-      console.log(`🚀 Running multi-participant competition with ${providers.length} providers...`);
-
-      const result = await runner.runMultiParticipantCompetition(providers);
-
-      if (result.isOk()) {
-        await handleMultiParticipantResult(result.value, competitionId, eventStore);
-      } else {
-        console.error('💥 Competition error:', result.error.message);
-        process.exit(1);
-      }
-    }
+    await executeCompetitionByParticipantCount(providers, runner, competitionId, eventStore);
   } catch (error) {
     console.error('💥 Unexpected error:', error instanceof Error ? error.message : String(error));
     process.exit(1);
   } finally {
     console.log('🧹 Cleaning up...');
     await eventStore.close();
+  }
+}
+
+async function executeCompetitionByParticipantCount(
+  providers: LLMProvider[],
+  runner: SimpleCompetitionRunner,
+  competitionId: CompetitionId,
+  eventStore: EventStore
+): Promise<void> {
+  if (providers.length === 1) {
+    await runSingleParticipantCompetition(providers[0], runner, competitionId, eventStore);
+  } else {
+    await runMultiParticipantCompetition(providers, runner, competitionId, eventStore);
+  }
+}
+
+async function runSingleParticipantCompetition(
+  provider: LLMProvider | undefined,
+  runner: SimpleCompetitionRunner,
+  competitionId: CompetitionId,
+  eventStore: EventStore
+): Promise<void> {
+  if (!provider) {
+    throw new Error('Provider not found at index 0');
+  }
+  console.log(`🚀 Running single-participant competition with ${provider.name}...`);
+
+  const result = await runner.runCompetition(provider);
+
+  if (result.isOk()) {
+    await handleSingleParticipantResult(result.value, competitionId, eventStore);
+  } else {
+    console.error('💥 Competition error:', result.error.message);
+    process.exit(1);
+  }
+}
+
+async function runMultiParticipantCompetition(
+  providers: LLMProvider[],
+  runner: SimpleCompetitionRunner,
+  competitionId: CompetitionId,
+  eventStore: EventStore
+): Promise<void> {
+  console.log(`🚀 Running multi-participant competition with ${providers.length} providers...`);
+
+  const result = await runner.runMultiParticipantCompetition(providers);
+
+  if (result.isOk()) {
+    await handleMultiParticipantResult(result.value, competitionId, eventStore);
+  } else {
+    console.error('💥 Competition error:', result.error.message);
+    process.exit(1);
   }
 }
 
@@ -126,7 +148,6 @@ async function handleMultiParticipantResult(
 
   console.log(`📝 Summary: ${competitionResult.summary}`);
 
-  // Show individual participant results
   console.log('\n👥 Participant Results:');
   for (const result of competitionResult.participantResults) {
     const status = result.success ? '✅' : '❌';
@@ -156,7 +177,6 @@ async function showResultsSummary(
   }
 }
 
-// CLI entry point
 export async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
@@ -176,7 +196,6 @@ export async function main(): Promise<void> {
   await runCompetition(workspaceDir, providerNames);
 }
 
-// Run if called directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch(error => {
     console.error('💥 CLI error:', error);

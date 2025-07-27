@@ -279,7 +279,6 @@ export class SimpleCompetitionRunner {
     let fixDir: string | undefined;
 
     try {
-      // Phase 1: Baseline creation
       baselineDir = await createWorkspace(
         `baseline-${this.competitionId.getValue()}-${provider.name}`
       );
@@ -315,7 +314,6 @@ export class SimpleCompetitionRunner {
         });
       }
 
-      // Phase 2: Bug injection
       buggyDir = await createWorkspace(`buggy-${this.competitionId.getValue()}-${provider.name}`);
 
       await this.logEvent(
@@ -349,7 +347,6 @@ export class SimpleCompetitionRunner {
         });
       }
 
-      // Phase 3: Fix attempt
       fixDir = await createWorkspace(`fix-${this.competitionId.getValue()}-${provider.name}`);
 
       await this.logEvent(
