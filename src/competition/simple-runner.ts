@@ -1,27 +1,25 @@
 // ABOUTME: SimpleCompetitionRunner for single-participant baseline creation workflow
-// Minimal implementation following TDD with proper error handling and event logging
+// Refactored implementation using SOLID principles with proper service separation
 
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { EventStore } from 'infrastructure/event-store/event-store';
-import { createWorkspace, cleanupWorkspace } from 'infrastructure/workspace/workspace';
-import { CompetitionEvent } from 'domain/competition-event/competition-event';
-import { EventId } from 'domain/competition-event/event-id';
 import { CompetitionId } from 'domain/competition-event/competition-id';
-import { RoundId } from 'domain/competition-event/round-id';
 import { ParticipantId } from 'domain/competition-event/participant-id';
 import { EventType } from 'domain/competition-event/event-type';
 import { Phase } from 'domain/competition-event/phase';
-import { Duration } from 'domain/competition-event/duration';
 import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
-import { MakefileValidator } from 'infrastructure/contract-validator/makefile-validator';
 import { Result, ok, err } from 'neverthrow';
-import { setTimeout, clearTimeout } from 'timers';
+
+import { WorkspaceService } from './services/workspace-service';
+import { ProviderExecutionService } from './services/provider-execution-service';
+import { CompetitionEventService } from './services/competition-event-service';
+import { ValidationService } from './services/validation-service';
 
 export interface CompetitionResult {
   readonly success: boolean;
   readonly message: string;
   readonly participantId: string;
-  readonly workspaceDir?: string;
+  readonly workspaceDir?: string | undefined;
 }
 
 export interface MultiParticipantCompetitionResult {
@@ -31,199 +29,70 @@ export interface MultiParticipantCompetitionResult {
 }
 
 export class SimpleCompetitionRunner {
-  private readonly validator: MakefileValidator;
+  private readonly workspaceService: WorkspaceService;
+  private readonly executionService: ProviderExecutionService;
+  private readonly eventService: CompetitionEventService;
+  private readonly validationService: ValidationService;
 
   constructor(
     private readonly eventStore: EventStore,
     private readonly competitionId: CompetitionId
   ) {
-    this.validator = new MakefileValidator();
+    this.workspaceService = new WorkspaceService();
+    this.executionService = new ProviderExecutionService();
+    this.eventService = new CompetitionEventService(eventStore, competitionId);
+    this.validationService = new ValidationService();
   }
 
   private async createBaselineOnly(
     provider: LLMProvider
   ): Promise<Result<CompetitionResult, Error>> {
     const participantId = ParticipantId.fromString(provider.name);
-    let workspaceDir: string | undefined;
+    const workspacePrefix = `competition-${this.competitionId.getValue()}-${provider.name}`;
 
-    try {
-      workspaceDir = await createWorkspace(
-        `competition-${this.competitionId.getValue()}-${provider.name}`
-      );
-
-      await this.logEvent(
+    return this.workspaceService.withWorkspace(workspacePrefix, async workspaceDir => {
+      await this.eventService.logPhaseStart(
         EventType.BASELINE_CREATION_STARTED,
         Phase.BASELINE,
         participantId,
-        { provider: provider.name, workspaceDir },
-        true
+        { provider: provider.name, workspaceDir }
       );
 
       const baselinePrompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
-      const codingExerciseResult = await this.createCodingExercise(
+      const executionResult = await this.executionService.executeBaselineCreation(
         provider,
         workspaceDir,
         baselinePrompt
       );
 
-      await this.logEvent(
-        EventType.BASELINE_COMPLETED,
-        Phase.BASELINE,
-        participantId,
-        { provider: provider.name, result: codingExerciseResult.providerResult },
-        codingExerciseResult.providerResult.success,
-        codingExerciseResult.duration
-      );
-
-      const competitionResult: CompetitionResult = {
-        success: codingExerciseResult.providerResult.success,
-        message: codingExerciseResult.providerResult.message,
-        participantId: provider.name,
-        workspaceDir,
-      };
-
-      return ok(competitionResult);
-    } catch (error) {
-      if (participantId) {
-        await this.logEvent(
+      if (executionResult.isErr()) {
+        await this.eventService.logError(
           EventType.BASELINE_COMPLETED,
           Phase.BASELINE,
           participantId,
-          {
-            provider: provider.name,
-            error: error instanceof Error ? error.message : String(error),
-          },
-          false
+          executionResult.error
         );
+        throw executionResult.error;
       }
 
-      return err(error instanceof Error ? error : new Error(String(error)));
-    } finally {
-      if (workspaceDir) {
-        await cleanupWorkspace(workspaceDir);
-      }
-    }
-  }
+      const { result, duration } = executionResult.value;
 
-  private async createCodingExercise(
-    provider: LLMProvider,
-    workspaceDir: string,
-    prompt: string
-  ): Promise<CodingExerciseResult> {
-    const startTime = Date.now();
-    const providerResult = await this.withTimeout(
-      provider.createCodingExercise(workspaceDir, prompt),
-      300000, // 5 minutes for baseline creation
-      'Baseline creation exceeded 5-minute time limit'
-    );
-    const durationMs = Date.now() - startTime;
-    const duration = Duration.fromSeconds(Math.floor(durationMs / 1000));
-    return new CodingExerciseResult({ providerResult, duration });
-  }
-
-  private async createBaselineAndInjectBug(
-    provider: LLMProvider
-  ): Promise<Result<CompetitionResult, Error>> {
-    const participantId = ParticipantId.fromString(provider.name);
-    let baselineDir: string | undefined;
-    let buggyDir: string | undefined;
-
-    try {
-      baselineDir = await createWorkspace(
-        `baseline-${this.competitionId.getValue()}-${provider.name}`
-      );
-
-      await this.logEvent(
-        EventType.BASELINE_CREATION_STARTED,
-        Phase.BASELINE,
-        participantId,
-        { provider: provider.name, baselineDir },
-        true
-      );
-
-      const baselinePrompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
-      const baselineStartTime = Date.now();
-      const baselineResult = await provider.createCodingExercise(baselineDir, baselinePrompt);
-      const baselineDuration = Duration.fromSeconds(
-        Math.floor((Date.now() - baselineStartTime) / 1000)
-      );
-
-      await this.logEvent(
+      await this.eventService.logPhaseComplete(
         EventType.BASELINE_COMPLETED,
         Phase.BASELINE,
         participantId,
-        { provider: provider.name, result: baselineResult },
-        baselineResult.success,
-        baselineDuration
+        { provider: provider.name, result },
+        result.success,
+        duration
       );
 
-      if (!baselineResult.success) {
-        return ok({
-          success: false,
-          message: `Baseline creation failed: ${baselineResult.message}`,
-          participantId: provider.name,
-        });
-      }
-
-      buggyDir = await createWorkspace(`buggy-${this.competitionId.getValue()}-${provider.name}`);
-
-      await this.logEvent(
-        EventType.BUG_INJECTION_STARTED,
-        Phase.BUG_INJECTION,
-        participantId,
-        { provider: provider.name, baselineDir, buggyDir },
-        true
-      );
-
-      const bugInjectionPrompt = SystemPrompts.formatPrompt(SystemPrompts.BUG_INJECTION);
-      const bugInjectionStartTime = Date.now();
-      const bugInjectionResult = await provider.injectBug(
-        baselineDir,
-        buggyDir,
-        bugInjectionPrompt
-      );
-      const bugInjectionDuration = Duration.fromSeconds(
-        Math.floor((Date.now() - bugInjectionStartTime) / 1000)
-      );
-
-      await this.logEvent(
-        EventType.BUG_INJECTION_COMPLETED,
-        Phase.BUG_INJECTION,
-        participantId,
-        { provider: provider.name, result: bugInjectionResult },
-        bugInjectionResult.success,
-        bugInjectionDuration
-      );
-
-      const competitionResult: CompetitionResult = {
-        success: bugInjectionResult.success,
-        message: `Two-phase workflow completed: ${baselineResult.message}, ${bugInjectionResult.message}`,
+      return {
+        success: result.success,
+        message: result.message,
         participantId: provider.name,
-        workspaceDir: buggyDir,
+        workspaceDir: undefined,
       };
-
-      return ok(competitionResult);
-    } catch (error) {
-      await this.logEvent(
-        EventType.BUG_INJECTION_COMPLETED,
-        Phase.BUG_INJECTION,
-        participantId,
-        {
-          provider: provider.name,
-          error: error instanceof Error ? error.message : String(error),
-        },
-        false
-      );
-
-      return err(error instanceof Error ? error : new Error(String(error)));
-    } finally {
-      if (baselineDir) {
-        await cleanupWorkspace(baselineDir);
-      }
-      if (buggyDir) {
-        await cleanupWorkspace(buggyDir);
-      }
-    }
+    });
   }
 
   async runMultiParticipantCompetition(
@@ -237,7 +106,7 @@ export class SimpleCompetitionRunner {
     let overallSuccess = true;
 
     try {
-      await this.logSystemEvent(EventType.COMPETITION_STARTED, Phase.BASELINE, {
+      await this.eventService.logSystemEvent(EventType.COMPETITION_STARTED, Phase.BASELINE, {
         participantCount: providers.length,
         providers: providers.map(p => p.name),
       });
@@ -271,7 +140,7 @@ export class SimpleCompetitionRunner {
         }
       }
 
-      await this.logSystemEvent(EventType.COMPETITION_COMPLETED, Phase.FIX_ATTEMPT, {
+      await this.eventService.logSystemEvent(EventType.COMPETITION_COMPLETED, Phase.FIX_ATTEMPT, {
         participantCount: providers.length,
         successfulParticipants: participantResults.filter(r => r.success).length,
         overallSuccess,
@@ -291,241 +160,192 @@ export class SimpleCompetitionRunner {
 
   async runCompetition(provider: LLMProvider): Promise<Result<CompetitionResult, Error>> {
     const participantId = ParticipantId.fromString(provider.name);
-    let baselineDir: string | undefined;
-    let buggyDir: string | undefined;
-    let fixDir: string | undefined;
+    const competitionPrefix = this.competitionId.getValue();
+    const workspacePrefixes = [
+      `baseline-${competitionPrefix}-${provider.name}`,
+      `buggy-${competitionPrefix}-${provider.name}`,
+      `fix-${competitionPrefix}-${provider.name}`,
+    ];
 
-    try {
-      baselineDir = await createWorkspace(
-        `baseline-${this.competitionId.getValue()}-${provider.name}`
-      );
+    return this.workspaceService.withMultipleWorkspaces(
+      workspacePrefixes,
+      async (workspaceDirs: string[]) => {
+        const [baselineDir, buggyDir, fixDir] = workspaceDirs;
 
-      await this.logEvent(
-        EventType.BASELINE_CREATION_STARTED,
-        Phase.BASELINE,
-        participantId,
-        { provider: provider.name, baselineDir },
-        true
-      );
+        if (!baselineDir || !buggyDir || !fixDir) {
+          throw new Error('Failed to create required workspaces');
+        }
+        // Baseline phase
+        await this.eventService.logPhaseStart(
+          EventType.BASELINE_CREATION_STARTED,
+          Phase.BASELINE,
+          participantId,
+          { provider: provider.name, baselineDir }
+        );
 
-      const baselinePrompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
-      const baselineStartTime = Date.now();
-      const baselineResult = await this.withTimeout(
-        provider.createCodingExercise(baselineDir, baselinePrompt),
-        300000, // 5 minutes for baseline creation
-        'Baseline creation exceeded 5-minute time limit'
-      );
-      const baselineDuration = Duration.fromSeconds(
-        Math.floor((Date.now() - baselineStartTime) / 1000)
-      );
+        const baselinePrompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
+        const baselineResult = await this.executionService.executeBaselineCreation(
+          provider,
+          baselineDir,
+          baselinePrompt
+        );
 
-      await this.logEvent(
-        EventType.BASELINE_COMPLETED,
-        Phase.BASELINE,
-        participantId,
-        { provider: provider.name, result: baselineResult },
-        baselineResult.success,
-        baselineDuration
-      );
+        if (baselineResult.isErr()) {
+          await this.eventService.logError(
+            EventType.BASELINE_COMPLETED,
+            Phase.BASELINE,
+            participantId,
+            baselineResult.error
+          );
+          throw baselineResult.error;
+        }
 
-      if (!baselineResult.success) {
-        return ok({
-          success: false,
-          message: `Baseline creation failed: ${baselineResult.message}`,
+        const { result: baselineOutcome, duration: baselineDuration } = baselineResult.value;
+
+        await this.eventService.logPhaseComplete(
+          EventType.BASELINE_COMPLETED,
+          Phase.BASELINE,
+          participantId,
+          { provider: provider.name, result: baselineOutcome },
+          baselineOutcome.success,
+          baselineDuration
+        );
+
+        if (!baselineOutcome.success) {
+          return {
+            success: false,
+            message: `Baseline creation failed: ${baselineOutcome.message}`,
+            participantId: provider.name,
+            workspaceDir: undefined,
+          };
+        }
+
+        // Validate baseline
+        const baselineValidationResult =
+          await this.validationService.validateBaselineSetup(baselineDir);
+        if (baselineValidationResult.isErr()) {
+          throw baselineValidationResult.error;
+        }
+
+        const baselineValidation = baselineValidationResult.value;
+        if (!baselineValidation.success) {
+          throw new Error(baselineValidation.message);
+        }
+
+        // Bug injection phase
+        await this.eventService.logPhaseStart(
+          EventType.BUG_INJECTION_STARTED,
+          Phase.BUG_INJECTION,
+          participantId,
+          { provider: provider.name, baselineDir, buggyDir }
+        );
+
+        const bugInjectionPrompt = SystemPrompts.formatPrompt(SystemPrompts.BUG_INJECTION);
+        const bugInjectionResult = await this.executionService.executeBugInjection(
+          provider,
+          baselineDir,
+          buggyDir,
+          bugInjectionPrompt
+        );
+
+        if (bugInjectionResult.isErr()) {
+          await this.eventService.logError(
+            EventType.BUG_INJECTION_COMPLETED,
+            Phase.BUG_INJECTION,
+            participantId,
+            bugInjectionResult.error
+          );
+          throw bugInjectionResult.error;
+        }
+
+        const { result: bugInjectionOutcome, duration: bugInjectionDuration } =
+          bugInjectionResult.value;
+
+        await this.eventService.logPhaseComplete(
+          EventType.BUG_INJECTION_COMPLETED,
+          Phase.BUG_INJECTION,
+          participantId,
+          { provider: provider.name, result: bugInjectionOutcome },
+          bugInjectionOutcome.success,
+          bugInjectionDuration
+        );
+
+        if (!bugInjectionOutcome.success) {
+          return {
+            success: false,
+            message: `Bug injection failed: ${bugInjectionOutcome.message}`,
+            participantId: provider.name,
+            workspaceDir: undefined,
+          };
+        }
+
+        // Validate bug injection
+        const bugValidationResult = await this.validationService.validateBugInjection(buggyDir);
+        if (bugValidationResult.isErr()) {
+          throw bugValidationResult.error;
+        }
+
+        const bugValidation = bugValidationResult.value;
+        if (!bugValidation.success) {
+          throw new Error(bugValidation.message);
+        }
+
+        // Fix attempt phase
+        await this.eventService.logPhaseStart(
+          EventType.FIX_ATTEMPT_STARTED,
+          Phase.FIX_ATTEMPT,
+          participantId,
+          { provider: provider.name, buggyDir, fixDir }
+        );
+
+        const fixPrompt = SystemPrompts.formatPrompt(SystemPrompts.FIX_ATTEMPT);
+        const fixResult = await this.executionService.executeFixAttempt(
+          provider,
+          buggyDir,
+          fixDir,
+          fixPrompt
+        );
+
+        if (fixResult.isErr()) {
+          await this.eventService.logError(
+            EventType.FIX_ATTEMPT_COMPLETED,
+            Phase.FIX_ATTEMPT,
+            participantId,
+            fixResult.error
+          );
+          throw fixResult.error;
+        }
+
+        const { result: fixOutcome, duration: fixDuration } = fixResult.value;
+
+        await this.eventService.logPhaseComplete(
+          EventType.FIX_ATTEMPT_COMPLETED,
+          Phase.FIX_ATTEMPT,
+          participantId,
+          { provider: provider.name, result: fixOutcome },
+          fixOutcome.success,
+          fixDuration
+        );
+
+        // Validate fix attempt
+        const fixValidationResult = await this.validationService.validateFixAttempt(fixDir);
+        if (fixValidationResult.isErr()) {
+          throw new Error(`Fix validation failed: ${fixValidationResult.error.message}`);
+        }
+
+        const fixValidation = fixValidationResult.value;
+        if (!fixValidation.success) {
+          throw new Error(`Fix validation failed: ${fixValidation.message}`);
+        }
+
+        return {
+          success: fixOutcome.success,
+          message: `Three-phase workflow completed: ${baselineOutcome.message}, ${bugInjectionOutcome.message}, ${fixOutcome.message}`,
           participantId: provider.name,
-        });
+          workspaceDir: undefined,
+        };
       }
-
-      const baselineValidation = await this.validator.validateSetupAndTest(baselineDir);
-      if (!baselineValidation.success) {
-        return err(new Error(baselineValidation.message));
-      }
-
-      buggyDir = await createWorkspace(`buggy-${this.competitionId.getValue()}-${provider.name}`);
-
-      await this.logEvent(
-        EventType.BUG_INJECTION_STARTED,
-        Phase.BUG_INJECTION,
-        participantId,
-        { provider: provider.name, baselineDir, buggyDir },
-        true
-      );
-
-      const bugInjectionPrompt = SystemPrompts.formatPrompt(SystemPrompts.BUG_INJECTION);
-      const bugInjectionStartTime = Date.now();
-      const bugInjectionResult = await this.withTimeout(
-        provider.injectBug(baselineDir, buggyDir, bugInjectionPrompt),
-        180000, // 3 minutes for bug injection
-        'Bug injection exceeded 3-minute time limit'
-      );
-      const bugInjectionDuration = Duration.fromSeconds(
-        Math.floor((Date.now() - bugInjectionStartTime) / 1000)
-      );
-
-      await this.logEvent(
-        EventType.BUG_INJECTION_COMPLETED,
-        Phase.BUG_INJECTION,
-        participantId,
-        { provider: provider.name, result: bugInjectionResult },
-        bugInjectionResult.success,
-        bugInjectionDuration
-      );
-
-      if (!bugInjectionResult.success) {
-        return ok({
-          success: false,
-          message: `Bug injection failed: ${bugInjectionResult.message}`,
-          participantId: provider.name,
-        });
-      }
-
-      const bugValidation = await this.validator.expectTestFailure(buggyDir);
-      if (!bugValidation.success) {
-        return err(new Error(bugValidation.message));
-      }
-
-      fixDir = await createWorkspace(`fix-${this.competitionId.getValue()}-${provider.name}`);
-
-      await this.logEvent(
-        EventType.FIX_ATTEMPT_STARTED,
-        Phase.FIX_ATTEMPT,
-        participantId,
-        { provider: provider.name, buggyDir, fixDir },
-        true
-      );
-
-      const fixPrompt = SystemPrompts.formatPrompt(SystemPrompts.FIX_ATTEMPT);
-      const fixStartTime = Date.now();
-      const fixResult = await this.withTimeout(
-        provider.fixAttempt(buggyDir, fixDir, fixPrompt),
-        180000, // 3 minutes for fix attempt
-        'Fix attempt exceeded 3-minute time limit'
-      );
-      const fixDuration = Duration.fromSeconds(Math.floor((Date.now() - fixStartTime) / 1000));
-
-      await this.logEvent(
-        EventType.FIX_ATTEMPT_COMPLETED,
-        Phase.FIX_ATTEMPT,
-        participantId,
-        { provider: provider.name, result: fixResult },
-        fixResult.success,
-        fixDuration
-      );
-
-      const fixValidation = await this.validator.validateTestOnly(fixDir);
-      if (!fixValidation.success) {
-        return err(new Error(`Fix validation failed: ${fixValidation.message}`));
-      }
-
-      const competitionResult: CompetitionResult = {
-        success: fixResult.success,
-        message: `Three-phase workflow completed: ${baselineResult.message}, ${bugInjectionResult.message}, ${fixResult.message}`,
-        participantId: provider.name,
-        workspaceDir: fixDir,
-      };
-
-      return ok(competitionResult);
-    } catch (error) {
-      await this.logEvent(
-        EventType.FIX_ATTEMPT_COMPLETED,
-        Phase.FIX_ATTEMPT,
-        participantId,
-        {
-          provider: provider.name,
-          error: error instanceof Error ? error.message : String(error),
-        },
-        false
-      );
-
-      return err(error instanceof Error ? error : new Error(String(error)));
-    } finally {
-      if (baselineDir) {
-        await cleanupWorkspace(baselineDir);
-      }
-      if (buggyDir) {
-        await cleanupWorkspace(buggyDir);
-      }
-      if (fixDir) {
-        await cleanupWorkspace(fixDir);
-      }
-    }
-  }
-
-  private async logEvent(
-    eventType: EventType,
-    phase: Phase,
-    participantId: ParticipantId,
-    data: Record<string, unknown>,
-    success: boolean,
-    duration: Duration = Duration.notMeasured()
-  ): Promise<void> {
-    const event = new CompetitionEvent(
-      this.generateEventId(),
-      new Date(),
-      this.competitionId,
-      RoundId.notApplicable(),
-      participantId,
-      eventType,
-      phase,
-      data,
-      success,
-      duration
     );
-
-    const result = await this.eventStore.insertEvent(event);
-    if (result.isErr()) {
-      throw new Error(`Failed to log event: ${result.error.message}`);
-    }
-  }
-
-  private generateEventId(): EventId {
-    return EventId.generate();
-  }
-
-  private async logSystemEvent(
-    eventType: EventType,
-    phase: Phase,
-    data: Record<string, unknown>
-  ): Promise<void> {
-    const event = new CompetitionEvent(
-      this.generateEventId(),
-      new Date(),
-      this.competitionId,
-      RoundId.notApplicable(),
-      ParticipantId.system(), // System participant for competition-level events
-      eventType,
-      phase,
-      data,
-      true, // System events are always "successful"
-      Duration.notMeasured()
-    );
-
-    const result = await this.eventStore.insertEvent(event);
-    if (result.isErr()) {
-      throw new Error(`Failed to log system event: ${result.error.message}`);
-    }
-  }
-
-  private async withTimeout<T>(
-    promise: Promise<T>,
-    timeoutMs: number,
-    timeoutMessage: string
-  ): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const timeoutId = setTimeout(() => {
-        reject(new Error(timeoutMessage));
-      }, timeoutMs);
-
-      promise
-        .then(result => {
-          clearTimeout(timeoutId);
-          resolve(result);
-        })
-        .catch(error => {
-          clearTimeout(timeoutId);
-          reject(error);
-        });
-    });
   }
 
   private createSummary(participantResults: CompetitionResult[], overallSuccess: boolean): string {
@@ -546,20 +366,5 @@ export class SimpleCompetitionRunner {
     }
 
     return summary;
-  }
-}
-
-class CodingExerciseResult {
-  public readonly providerResult: { readonly success: boolean; readonly message: string };
-  public readonly duration: Duration;
-
-  constructor(
-    readonly props: {
-      providerResult: { readonly success: boolean; message: string };
-      readonly duration: Duration;
-    }
-  ) {
-    this.providerResult = props.providerResult;
-    this.duration = props.duration;
   }
 }
