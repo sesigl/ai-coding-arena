@@ -2,16 +2,11 @@
 // Minimal implementation with basic error handling and progress reporting
 /* eslint-disable no-console */
 
-import { SimpleCompetitionRunner } from 'competition/simple-runner';
-import { EventStore } from 'infrastructure/event-store/event-store';
+import { GameRunner } from 'competition/game-runner';
 import { MockProvider } from 'providers/mock-provider/mock-provider';
 import { ClaudeCodeProvider } from 'providers/claude-code-provider/claude-code-provider';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
-import { CompetitionId } from 'domain/competition-event/competition-id';
-import { ResultsFormatter } from 'results/formatter';
-import { CompetitionResult, MultiParticipantCompetitionResult } from 'competition/simple-runner';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import { ParticipantId } from 'domain/competition-event/participant-id';
 
 function createProvider(providerName: string): LLMProvider {
   switch (providerName) {
@@ -30,170 +25,127 @@ function createProvider(providerName: string): LLMProvider {
 
 export async function runCompetition(
   workspaceDir: string,
-  providerNames: string[] = ['mock-provider']
+  providerNames: string[] = ['mock-provider', 'mock-provider', 'mock-provider'],
+  rounds: number = 3
 ): Promise<void> {
   console.log('🏁 Starting AI Coding Arena Competition...');
   console.log(`📁 Workspace: ${workspaceDir}`);
   console.log(`🤖 Providers: ${providerNames.join(', ')}`);
+  console.log(`🔄 Rounds: ${rounds}`);
 
-  const dbPath = join(tmpdir(), `competition-${Date.now()}.db`);
-  const eventStore = new EventStore(dbPath);
+  if (providerNames.length < 3) {
+    console.error(
+      '💥 Game runner requires at least 3 providers for competitive gameplay (baseline creator, bug injector, fixer)'
+    );
+    process.exit(1);
+  }
 
   try {
-    console.log('🔧 Initializing event store...');
-    const initResult = await eventStore.initialize();
-    if (initResult.isErr()) {
-      console.error('💥 Failed to initialize event store:', initResult.error.message);
-      process.exit(1);
-    }
-
-    const competitionId = new CompetitionId(`comp-${Date.now()}`);
-    const runner = new SimpleCompetitionRunner(eventStore, competitionId);
     const providers = providerNames.map(name => createProvider(name));
+    const participantMap = createParticipantMap(providers);
+    const runner = new GameRunner(participantMap, workspaceDir);
 
-    await executeCompetitionByParticipantCount(providers, runner, competitionId, eventStore);
+    setupEventLogging(runner);
+    const finalSummary = await runner.start(rounds);
+
+    console.log('\n🏆 Final Results:');
+    console.log(JSON.stringify(finalSummary, null, 2));
   } catch (error) {
     console.error('💥 Unexpected error:', error instanceof Error ? error.message : String(error));
     process.exit(1);
-  } finally {
-    console.log('🧹 Cleaning up...');
-    await eventStore.close();
   }
 }
 
-async function executeCompetitionByParticipantCount(
-  providers: LLMProvider[],
-  runner: SimpleCompetitionRunner,
-  competitionId: CompetitionId,
-  eventStore: EventStore
-): Promise<void> {
-  if (providers.length === 1) {
-    await runSingleParticipantCompetition(providers[0], runner, competitionId, eventStore);
-  } else {
-    await runMultiParticipantCompetition(providers, runner, competitionId, eventStore);
-  }
+function createParticipantMap(providers: LLMProvider[]): Map<ParticipantId, LLMProvider> {
+  const participantMap = new Map<ParticipantId, LLMProvider>();
+  providers.forEach((provider, index) => {
+    const participantId = ParticipantId.fromString(`${provider.name}-${index + 1}`);
+    participantMap.set(participantId, provider);
+  });
+  return participantMap;
 }
 
-async function runSingleParticipantCompetition(
-  provider: LLMProvider | undefined,
-  runner: SimpleCompetitionRunner,
-  competitionId: CompetitionId,
-  eventStore: EventStore
-): Promise<void> {
-  if (!provider) {
-    throw new Error('Provider not found at index 0');
-  }
-  console.log(`🚀 Running single-participant competition with ${provider.name}...`);
-
-  const result = await runner.runCompetition(provider);
-
-  if (result.isOk()) {
-    await handleSingleParticipantResult(result.value, competitionId, eventStore);
-  } else {
-    console.error('💥 Competition error:', result.error.message);
-    process.exit(1);
-  }
-}
-
-async function runMultiParticipantCompetition(
-  providers: LLMProvider[],
-  runner: SimpleCompetitionRunner,
-  competitionId: CompetitionId,
-  eventStore: EventStore
-): Promise<void> {
-  console.log(`🚀 Running multi-participant competition with ${providers.length} providers...`);
-
-  const result = await runner.runMultiParticipantCompetition(providers);
-
-  if (result.isOk()) {
-    await handleMultiParticipantResult(result.value, competitionId, eventStore);
-  } else {
-    console.error('💥 Competition error:', result.error.message);
-    process.exit(1);
-  }
-}
-
-async function handleSingleParticipantResult(
-  competitionResult: CompetitionResult,
-  competitionId: CompetitionId,
-  eventStore: EventStore
-): Promise<void> {
-  if (competitionResult.success) {
-    console.log('✅ Competition completed successfully!');
-    console.log(`📝 Result: ${competitionResult.message}`);
-    console.log(`👤 Participant: ${competitionResult.participantId}`);
-  } else {
-    console.log('❌ Competition failed');
-    console.log(`📝 Error: ${competitionResult.message}`);
-    console.log(`👤 Participant: ${competitionResult.participantId}`);
-  }
-
-  await showResultsSummary(competitionId, eventStore);
-
-  if (!competitionResult.success) {
-    process.exit(1);
-  }
-}
-
-async function handleMultiParticipantResult(
-  competitionResult: MultiParticipantCompetitionResult,
-  competitionId: CompetitionId,
-  eventStore: EventStore
-): Promise<void> {
-  if (competitionResult.overallSuccess) {
-    console.log('✅ Multi-participant competition completed successfully!');
-  } else {
-    console.log('❌ Multi-participant competition completed with failures');
-  }
-
-  console.log(`📝 Summary: ${competitionResult.summary}`);
-
-  console.log('\n👥 Participant Results:');
-  for (const result of competitionResult.participantResults) {
-    const status = result.success ? '✅' : '❌';
-    console.log(`  ${status} ${result.participantId}: ${result.message}`);
-  }
-
-  await showResultsSummary(competitionId, eventStore);
-
-  if (!competitionResult.overallSuccess) {
-    process.exit(1);
-  }
-}
-
-async function showResultsSummary(
-  competitionId: CompetitionId,
-  eventStore: EventStore
-): Promise<void> {
-  console.log('\n📊 Competition Results:');
-  const formatter = new ResultsFormatter(eventStore);
-  const resultsResult = await formatter.formatCompetitionResults(competitionId);
-
-  if (resultsResult.isOk()) {
-    const summary = resultsResult.value;
-    console.log(formatter.formatAsJson(summary));
-  } else {
-    console.error('⚠️  Failed to generate results:', resultsResult.error.message);
-  }
+function setupEventLogging(runner: GameRunner): void {
+  runner.onEvent(event => {
+    switch (event.type) {
+      case 'round-started': {
+        console.log(`\n🔄 Round ${event.round} started - Baseline author: ${event.baselineAuthor}`);
+        break;
+      }
+      case 'baseline-attempt': {
+        const baselineStatus = event.success ? '✅' : '❌';
+        console.log(`  ${baselineStatus} Baseline: ${event.participant} - ${event.message}`);
+        if (event.workspacePath) {
+          console.log(`    📁 Workspace: ${event.workspacePath}`);
+        }
+        break;
+      }
+      case 'bug-injection-attempt': {
+        const bugStatus = event.success ? '✅' : '❌';
+        console.log(`  ${bugStatus} Bug injection: ${event.participant} - ${event.message}`);
+        if (event.workspacePath) {
+          console.log(`    📁 Workspace: ${event.workspacePath}`);
+        }
+        break;
+      }
+      case 'fix-attempt': {
+        const fixStatus = event.success ? '✅' : '❌';
+        console.log(`  ${fixStatus} Fix attempt: ${event.participant} - ${event.message}`);
+        if (event.workspacePath) {
+          console.log(`    📁 Workspace: ${event.workspacePath}`);
+        }
+        break;
+      }
+      case 'round-finished': {
+        console.log(`\n📊 Round ${event.round} completed. Current scores:`);
+        if (event.scores && typeof event.scores === 'object') {
+          Object.entries(event.scores).forEach(([participant, score]) => {
+            console.log(`  ${participant}: ${score}`);
+          });
+        }
+        break;
+      }
+    }
+  });
 }
 
 export async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
   if (args.length < 1) {
-    console.error('Usage: npm run cli <workspace-dir> [provider1] [provider2] ...');
-    console.error('Providers: mock-provider (default), claude-code');
+    console.error(
+      'Usage: npm run cli <workspace-dir> [provider1] [provider2] [provider3] ... [--rounds=N]'
+    );
+    console.error(
+      'Providers: mock-provider, claude-code (minimum 3 required for competitive gameplay)'
+    );
     console.error('Examples:');
-    console.error('  npm run cli ./my-workspace');
-    console.error('  npm run cli ./my-workspace mock-provider');
-    console.error('  npm run cli ./my-workspace claude-code');
-    console.error('  npm run cli ./my-workspace mock-provider claude-code');
+    console.error('  npm run cli ./my-workspace mock-provider mock-provider claude-code');
+    console.error(
+      '  npm run cli ./my-workspace mock-provider claude-code mock-provider --rounds=5'
+    );
     process.exit(1);
   }
 
   const workspaceDir = args[0] as string;
-  const providerNames = args.length > 1 ? args.slice(1) : ['mock-provider'];
-  await runCompetition(workspaceDir, providerNames);
+  let providerNames: string[] = [];
+  let rounds = 3;
+
+  // Parse arguments for providers and rounds
+  for (let i = 1; i < args.length; i++) {
+    const arg = args[i] as string;
+    if (arg.startsWith('--rounds=')) {
+      rounds = parseInt(arg.split('=')[1] as string, 10) || 3;
+    } else {
+      providerNames.push(arg);
+    }
+  }
+
+  if (providerNames.length === 0) {
+    providerNames = ['mock-provider', 'mock-provider', 'mock-provider']; // Default to 3 mock providers
+  }
+
+  await runCompetition(workspaceDir, providerNames, rounds);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
