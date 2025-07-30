@@ -124,13 +124,13 @@ export class MakefileValidator {
         stderr,
         exitCode: 0,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         success: false,
-        message: error.message || `'make ${target}' failed`,
-        stdout: error.stdout || '',
-        stderr: error.stderr || '',
-        exitCode: error.code || 1,
+        message: error instanceof Error ? error.message : `'make ${target}' failed`,
+        stdout: (error as { stdout?: string }).stdout || '',
+        stderr: (error as { stderr?: string }).stderr || '',
+        exitCode: (error as { code?: number }).code || 1,
       };
     }
   }

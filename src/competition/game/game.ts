@@ -13,6 +13,10 @@ export class Game {
   private readonly scoreKeeper = new ScoreKeeper();
   private completedRounds = 0;
 
+  registerParticipant(participant: ParticipantId): void {
+    this.scoreKeeper.registerParticipant(participant);
+  }
+
   startRound(roundNumber: number, baselineAuthor: ParticipantId): void {
     this.stateManager.startRound(roundNumber, baselineAuthor);
   }

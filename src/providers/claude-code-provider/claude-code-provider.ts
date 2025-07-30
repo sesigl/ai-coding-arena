@@ -2,10 +2,46 @@
 // Competition-focused prompts that encourage deep thinking and strategic bug creation/fixing
 
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
-import { query, type SDKMessage } from '@anthropic-ai/claude-code';
+import {
+  query,
+  type SDKMessage,
+  type SDKAssistantMessage,
+  type SDKUserMessage,
+} from '@anthropic-ai/claude-code';
 import { cp } from 'fs/promises';
 import { setTimeout as nodeSetTimeout, clearTimeout } from 'timers';
 import { DebugLogger } from 'utils/debug-logger';
+
+// Type guards for discriminated unions
+function isUserOrAssistantMessage(msg: SDKMessage): msg is SDKUserMessage | SDKAssistantMessage {
+  return msg.type === 'user' || msg.type === 'assistant';
+}
+
+// Type assertion helper for runtime-validated streaming messages
+function asStreamingToolMessage(msg: SDKMessage): {
+  subtype: string;
+  name?: string;
+  is_error?: boolean;
+  duration_ms?: number;
+  output?: unknown;
+} | null {
+  if (
+    msg.type === 'result' &&
+    typeof msg === 'object' &&
+    msg !== null &&
+    'subtype' in msg &&
+    typeof (msg as Record<string, unknown>).subtype === 'string'
+  ) {
+    return msg as {
+      subtype: string;
+      name?: string;
+      is_error?: boolean;
+      duration_ms?: number;
+      output?: unknown;
+    };
+  }
+  return null;
+}
 
 export class ClaudeCodeProvider implements LLMProvider {
   readonly name = 'claude-code';
@@ -113,20 +149,22 @@ export class ClaudeCodeProvider implements LLMProvider {
           messages.push(message);
           messageCount++;
 
-          if (message.type === 'user' || message.type === 'assistant') {
+          if (isUserOrAssistantMessage(message)) {
             let hasContent = false;
-            let toolCalls: any[] = [];
+            let toolCalls: Array<{ name: string; input: unknown }> = [];
 
             if (message.message && typeof message.message === 'object') {
               if ('content' in message.message && Array.isArray(message.message.content)) {
-                const textParts = message.message.content.filter((c: any) => c.type === 'text');
+                const textParts = message.message.content.filter(
+                  (c: { type: string; text?: string }) => c.type === 'text'
+                );
                 const toolUseParts = message.message.content.filter(
-                  (c: any) => c.type === 'tool_use'
+                  (c: { type: string; name?: string; input?: unknown }) => c.type === 'tool_use'
                 );
 
                 if (textParts.length > 0) {
                   const textContent = textParts
-                    .map((c: any) => c.text)
+                    .map((c: { text: string }) => c.text)
                     .join(' ')
                     .trim();
                   if (textContent) {
@@ -141,7 +179,7 @@ export class ClaudeCodeProvider implements LLMProvider {
 
                 if (toolUseParts.length > 0) {
                   toolCalls = toolUseParts;
-                  toolCalls.forEach((tool: any) => {
+                  toolCalls.forEach(tool => {
                     DebugLogger.logContent(
                       phaseUpper,
                       `🔧 ${tool.name}: ${JSON.stringify(tool.input)}`,
@@ -164,36 +202,39 @@ export class ClaudeCodeProvider implements LLMProvider {
             if (!hasContent) {
               DebugLogger.logDot();
             }
-          } else if (message.type === 'result' && (message as any).subtype === 'tool_use') {
-            const toolName = (message as any).name || 'unknown';
-            DebugLogger.logContent(phaseUpper, `🔧 ${toolName}`, 'CLAUDE_CODE');
-          } else if (message.type === 'result' && (message as any).subtype === 'tool_result') {
-            const isError = (message as any).is_error || false;
-            const duration = (message as any).duration_ms;
-            const status = isError ? '❌' : '✅';
-            const timing = duration ? ` (${duration}ms)` : '';
+          } else {
+            const streamingMsg = asStreamingToolMessage(message);
+            if (streamingMsg && streamingMsg.subtype === 'tool_use') {
+              const toolName = streamingMsg.name || 'unknown';
+              DebugLogger.logContent(phaseUpper, `🔧 ${toolName}`, 'CLAUDE_CODE');
+            } else if (streamingMsg && streamingMsg.subtype === 'tool_result') {
+              const isError = streamingMsg.is_error || false;
+              const duration = streamingMsg.duration_ms;
+              const status = isError ? '❌' : '✅';
+              const timing = duration ? ` (${duration}ms)` : '';
 
-            if (isError) {
-              const errorOutput = (message as any).output || 'No error details';
-              DebugLogger.logContent(
-                phaseUpper,
-                `${status} Error${timing}: ${String(errorOutput)}`,
-                'CLAUDE_CODE'
-              );
-            } else {
-              const output = (message as any).output;
-              if (output && String(output).trim()) {
+              if (isError) {
+                const errorOutput = streamingMsg.output || 'No error details';
                 DebugLogger.logContent(
                   phaseUpper,
-                  `${status} Success${timing}: ${String(output)}`,
+                  `${status} Error${timing}: ${String(errorOutput)}`,
                   'CLAUDE_CODE'
                 );
               } else {
-                DebugLogger.logContent(phaseUpper, `${status} Success${timing}`, 'CLAUDE_CODE');
+                const output = streamingMsg.output;
+                if (output && String(output).trim()) {
+                  DebugLogger.logContent(
+                    phaseUpper,
+                    `${status} Success${timing}: ${String(output)}`,
+                    'CLAUDE_CODE'
+                  );
+                } else {
+                  DebugLogger.logContent(phaseUpper, `${status} Success${timing}`, 'CLAUDE_CODE');
+                }
               }
+            } else {
+              DebugLogger.logDot();
             }
-          } else {
-            DebugLogger.logDot();
           }
         }
 

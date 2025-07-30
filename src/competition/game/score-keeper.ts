@@ -19,6 +19,15 @@ export class ScoreKeeper {
     this.scorecards.set(participant.getValue(), updated);
   }
 
+  registerParticipant(participant: ParticipantId): void {
+    if (!this.scores.has(participant.getValue())) {
+      this.scores.set(participant.getValue(), 0);
+    }
+    if (!this.scorecards.has(participant.getValue())) {
+      this.scorecards.set(participant.getValue(), this.createEmptyScoreCard());
+    }
+  }
+
   getScore(participant: ParticipantId): number {
     return this.scores.get(participant.getValue()) ?? 0;
   }
