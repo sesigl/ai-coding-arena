@@ -114,6 +114,11 @@ export class Game {
     };
   }
 
+  getCurrentRound(): number {
+    const state = this.stateManager.getCurrentState();
+    return state.roundNumber || 0;
+  }
+
   getNextExpectedStep(): NextStep {
     return this.stateManager.getNextExpectedStep();
   }

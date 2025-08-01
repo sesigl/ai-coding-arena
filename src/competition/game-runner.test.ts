@@ -7,7 +7,7 @@ import { ParticipantId } from 'domain/competition-event/participant-id';
 import { MockProvider } from 'providers/mock-provider/mock-provider';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { mkdir, rm } from 'fs/promises';
+import { mkdir, rm, writeFile } from 'fs/promises';
 
 describe('GameRunner', () => {
   let gameRunner: GameRunner;
@@ -122,7 +122,6 @@ describe('GameRunner', () => {
     it('should handle baseline failure and end round early', async () => {
       // Create a provider that will fail baseline creation
       const failingProvider = new MockProvider();
-      const _originalMethod = failingProvider.createCodingExercise;
       failingProvider.createCodingExercise = async () => ({
         success: false,
         message: 'Baseline creation failed for testing',
@@ -163,20 +162,76 @@ describe('GameRunner', () => {
 
       const summary = await gameRunner.start(3);
 
-      // Should have exactly 3 rounds
       const roundStartEvents = events.filter(e => e.type === 'round-started');
       const roundFinishEvents = events.filter(e => e.type === 'round-finished');
 
       expect(roundStartEvents).toHaveLength(3);
       expect(roundFinishEvents).toHaveLength(3);
 
-      // Verify participant rotation
       expect(roundStartEvents[0]).toMatchObject({ baselineAuthor: participantA.getValue() });
       expect(roundStartEvents[1]).toMatchObject({ baselineAuthor: participantB.getValue() });
       expect(roundStartEvents[2]).toMatchObject({ baselineAuthor: participantC.getValue() });
 
       expect(summary.totalRounds).toBe(3);
       expect(summary.participantScores).toHaveLength(3);
+    });
+  });
+
+  describe('Unique Workspace Directory Management', () => {
+    it('should create unique workspace directories for each task to prevent cross-contamination', async () => {
+      const events: GameEvent[] = [];
+      gameRunner.onEvent(event => events.push(event));
+
+      await gameRunner.start(2);
+
+      const baselineEvents = events.filter(e => e.type === 'baseline-attempt');
+      const bugInjectionEvents = events.filter(e => e.type === 'bug-injection-attempt');
+      const fixAttemptEvents = events.filter(e => e.type === 'fix-attempt');
+
+      expect(baselineEvents).toHaveLength(2);
+
+      const baselinePaths = baselineEvents.map(
+        e => (e as typeof e & { workspacePath: string }).workspacePath
+      );
+      expect(baselinePaths[0]).not.toBe(baselinePaths[1]);
+
+      expect(baselinePaths[0]).toMatch(/round1.*baseline/);
+      expect(baselinePaths[1]).toMatch(/round2.*baseline/);
+
+      const bugInjectionPaths = bugInjectionEvents.map(
+        e => (e as typeof e & { workspacePath: string }).workspacePath
+      );
+      const fixAttemptPaths = fixAttemptEvents.map(
+        e => (e as typeof e & { workspacePath: string }).workspacePath
+      );
+
+      expect(bugInjectionPaths[0]).toMatch(/round1.*buginjection/);
+      expect(bugInjectionPaths[1]).toMatch(/round2.*buginjection/);
+
+      expect(fixAttemptPaths[0]).toMatch(/round1.*fixattempt/);
+      expect(fixAttemptPaths[1]).toMatch(/round2.*fixattempt/);
+
+      const allPaths = [...baselinePaths, ...bugInjectionPaths, ...fixAttemptPaths];
+      const uniquePaths = new Set(allPaths);
+      expect(uniquePaths.size).toBe(allPaths.length);
+    });
+
+    it('should fail fast when workspace directory already exists and is non-empty', async () => {
+      const workspaceDir = join(testWorkspaceDir, 'blazing-bulldozer-round1-baseline');
+      await mkdir(workspaceDir, { recursive: true });
+      await writeFile(join(workspaceDir, 'existing-file.txt'), 'contaminated content');
+
+      const events: GameEvent[] = [];
+      gameRunner.onEvent(event => events.push(event));
+
+      await gameRunner.start(1);
+
+      const baselineEvent = events.find(e => e.type === 'baseline-attempt');
+      expect(baselineEvent).toBeDefined();
+      expect((baselineEvent as typeof baselineEvent & { success: boolean }).success).toBe(false);
+      expect((baselineEvent as typeof baselineEvent & { message: string }).message).toContain(
+        'Workspace directory is not empty'
+      );
     });
   });
 });

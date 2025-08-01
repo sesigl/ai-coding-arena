@@ -5,7 +5,7 @@ import { Game } from './game/game';
 import { ParticipantId } from 'domain/competition-event/participant-id';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { join } from 'path';
-import { mkdir } from 'fs/promises';
+import { mkdir, readdir, stat } from 'fs/promises';
 
 export interface GameEvent {
   type:
@@ -73,7 +73,7 @@ export class GameRunner {
       participant: baselineAuthor.getValue(),
       success: baselineResult.success,
       message: baselineResult.message,
-      workspacePath: this.getParticipantWorkspace(baselineAuthor),
+      workspacePath: this.getTaskWorkspace(baselineAuthor, 'baseline', this.game.getCurrentRound()),
     });
 
     if (baselineResult.success) {
@@ -91,7 +91,11 @@ export class GameRunner {
         participant: bugInjector.getValue(),
         success: bugResult.success,
         message: bugResult.message,
-        workspacePath: this.getParticipantWorkspace(bugInjector),
+        workspacePath: this.getTaskWorkspace(
+          bugInjector,
+          'buginjection',
+          this.game.getCurrentRound()
+        ),
       });
 
       if (bugResult.success) {
@@ -111,7 +115,7 @@ export class GameRunner {
           participant: fixer.getValue(),
           success: fixResult.success,
           message: fixResult.message,
-          workspacePath: this.getParticipantWorkspace(fixer),
+          workspacePath: this.getTaskWorkspace(fixer, 'fixattempt', this.game.getCurrentRound()),
         });
 
         if (fixResult.success) {
@@ -141,11 +145,22 @@ export class GameRunner {
     if (!provider) {
       throw new Error(`No provider found for participant ${participant.getValue()}`);
     }
-    const workspaceDir = this.getParticipantWorkspace(participant);
+    const workspaceDir = this.getTaskWorkspace(
+      participant,
+      'baseline',
+      this.game.getCurrentRound()
+    );
 
-    await mkdir(workspaceDir, { recursive: true });
-
-    return provider.createCodingExercise(workspaceDir, 'Create baseline implementation');
+    try {
+      await this.validateWorkspaceIsEmpty(workspaceDir);
+      await mkdir(workspaceDir, { recursive: true });
+      return provider.createCodingExercise(workspaceDir, 'Create baseline implementation');
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   private async executeBugInjection(
@@ -156,12 +171,27 @@ export class GameRunner {
     if (!provider) {
       throw new Error(`No provider found for participant ${bugInjector.getValue()}`);
     }
-    const baselineDir = this.getParticipantWorkspace(baselineAuthor);
-    const workspaceDir = this.getParticipantWorkspace(bugInjector);
+    const baselineDir = this.getTaskWorkspace(
+      baselineAuthor,
+      'baseline',
+      this.game.getCurrentRound()
+    );
+    const workspaceDir = this.getTaskWorkspace(
+      bugInjector,
+      'buginjection',
+      this.game.getCurrentRound()
+    );
 
-    await mkdir(workspaceDir, { recursive: true });
-
-    return provider.injectBug(baselineDir, workspaceDir, 'Inject bug into baseline');
+    try {
+      await this.validateWorkspaceIsEmpty(workspaceDir);
+      await mkdir(workspaceDir, { recursive: true });
+      return provider.injectBug(baselineDir, workspaceDir, 'Inject bug into baseline');
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
   private async executeFixAttempt(
@@ -172,16 +202,46 @@ export class GameRunner {
     if (!provider) {
       throw new Error(`No provider found for participant ${fixer.getValue()}`);
     }
-    const buggyDir = this.getParticipantWorkspace(bugInjector);
-    const workspaceDir = this.getParticipantWorkspace(fixer);
+    const buggyDir = this.getTaskWorkspace(
+      bugInjector,
+      'buginjection',
+      this.game.getCurrentRound()
+    );
+    const workspaceDir = this.getTaskWorkspace(fixer, 'fixattempt', this.game.getCurrentRound());
 
-    await mkdir(workspaceDir, { recursive: true });
-
-    return provider.fixAttempt(buggyDir, workspaceDir, 'Fix the injected bug');
+    try {
+      await this.validateWorkspaceIsEmpty(workspaceDir);
+      await mkdir(workspaceDir, { recursive: true });
+      return provider.fixAttempt(buggyDir, workspaceDir, 'Fix the injected bug');
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 
-  private getParticipantWorkspace(participant: ParticipantId): string {
-    return join(this.workspaceBaseDir, participant.getValue());
+  private getTaskWorkspace(participant: ParticipantId, task: string, round: number): string {
+    return join(this.workspaceBaseDir, `${participant.getValue()}-round${round}-${task}`);
+  }
+
+  private async validateWorkspaceIsEmpty(workspaceDir: string): Promise<void> {
+    try {
+      const stats = await stat(workspaceDir);
+      if (stats.isDirectory()) {
+        const contents = await readdir(workspaceDir);
+        if (contents.length > 0) {
+          throw new Error(
+            `Workspace directory is not empty: ${workspaceDir}. Contains: ${contents.join(', ')}`
+          );
+        }
+      }
+    } catch (error) {
+      if ((error as { code?: string }).code === 'ENOENT') {
+        return;
+      }
+      throw error;
+    }
   }
 
   private getCurrentScores(): Record<string, number> {
