@@ -315,3 +315,5 @@ testdata/
 *.duckdb
 *.duckdb.wal
 *.duckdb.tmp
+
+/workspace/*

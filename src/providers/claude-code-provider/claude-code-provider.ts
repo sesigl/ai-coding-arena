@@ -80,7 +80,7 @@ export class ClaudeCodeProvider implements LLMProvider {
     }
 
     DebugLogger.logProgress('BUG_INJECTION', 'Starting bug injection with Claude Code');
-    const result = await this.executeQuery(workspaceDir, prompt, 'bug injection');
+    const result = await this.executeQuery(workspaceDir, prompt, 'bug injection', 300000);
     DebugLogger.logPhaseEnd('BUG_INJECTION', result.success, result.message);
     return result;
   }
@@ -116,7 +116,8 @@ export class ClaudeCodeProvider implements LLMProvider {
   private async executeQuery(
     workspaceDir: string,
     prompt: string,
-    phase: string
+    phase: string,
+    timeoutInMs = 180000
   ): Promise<{ success: boolean; message: string }> {
     const phaseUpper = phase.toUpperCase().replace(' ', '_');
 
@@ -126,12 +127,12 @@ export class ClaudeCodeProvider implements LLMProvider {
 
       const timeout = nodeSetTimeout(() => {
         abortController.abort();
-      }, 180000);
+      }, timeoutInMs);
 
       DebugLogger.logProgress(phaseUpper, 'Starting Claude Code conversation', {
         workspaceDir,
         maxTurns: 15,
-        timeoutMs: 180000,
+        timeoutMs: timeoutInMs,
       });
 
       try {
@@ -144,6 +145,7 @@ export class ClaudeCodeProvider implements LLMProvider {
             cwd: workspaceDir,
             allowedTools: ['Read', 'Write', 'Bash', 'Edit', 'Glob', 'LS'],
             disallowedTools: [],
+            model: 'eu.anthropic.claude-sonnet-4-20250514-v1:0',
           },
         })) {
           messages.push(message);
