@@ -138,13 +138,13 @@ export class ClaudeCodeProvider implements LLMProvider {
       try {
         let messageCount = 0;
         for await (const message of query({
-          prompt,
+          prompt: `${prompt}\n\nIMPORTANT CONSTRAINTS:\n- You are working in a sandboxed workspace directory: ${workspaceDir}\n- You MUST stay within this directory - never access files outside of it\n- All file paths must be relative to the current working directory\n- Do not use absolute paths or .. to navigate outside the workspace\n- Only work with files that exist within the workspace directory`,
           abortController,
           options: {
             maxTurns: 15, // Allow more turns for deep analysis
             cwd: workspaceDir,
-            allowedTools: ['Read', 'Write', 'Bash', 'Edit', 'Glob', 'LS'],
-            disallowedTools: [],
+            allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'LS'],
+            disallowedTools: ['Task', 'WebFetch', 'Bash'],
             model: 'eu.anthropic.claude-sonnet-4-20250514-v1:0',
           },
         })) {
@@ -264,10 +264,14 @@ export class ClaudeCodeProvider implements LLMProvider {
         clearTimeout(timeout);
 
         if (abortController.signal.aborted) {
-          DebugLogger.logProgress(phaseUpper, 'Conversation timed out after 3 minutes');
+          const timeoutInMinutes = Math.round(timeoutInMs / 60000);
+          DebugLogger.logProgress(
+            phaseUpper,
+            `Conversation timed out after ${timeoutInMinutes} minutes`
+          );
           return {
             success: false,
-            message: `Claude Code ${phase} timed out after 3 minutes`,
+            message: `Claude Code ${phase} timed out after ${timeoutInMinutes} minutes`,
           };
         }
 
