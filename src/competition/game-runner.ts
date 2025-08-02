@@ -4,6 +4,7 @@
 import { Game } from './game/game';
 import { ParticipantId } from 'domain/competition-event/participant-id';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
+import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
 import { join } from 'path';
 import { mkdir, readdir, stat } from 'fs/promises';
 
@@ -154,7 +155,8 @@ export class GameRunner {
     try {
       await this.validateWorkspaceIsEmpty(workspaceDir);
       await mkdir(workspaceDir, { recursive: true });
-      return provider.createCodingExercise(workspaceDir, 'Create baseline implementation');
+      const prompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
+      return provider.createCodingExercise(workspaceDir, prompt);
     } catch (error) {
       return {
         success: false,
@@ -185,7 +187,8 @@ export class GameRunner {
     try {
       await this.validateWorkspaceIsEmpty(workspaceDir);
       await mkdir(workspaceDir, { recursive: true });
-      return provider.injectBug(baselineDir, workspaceDir, 'Inject bug into baseline');
+      const prompt = SystemPrompts.formatPrompt(SystemPrompts.BUG_INJECTION);
+      return provider.injectBug(baselineDir, workspaceDir, prompt);
     } catch (error) {
       return {
         success: false,
@@ -212,7 +215,8 @@ export class GameRunner {
     try {
       await this.validateWorkspaceIsEmpty(workspaceDir);
       await mkdir(workspaceDir, { recursive: true });
-      return provider.fixAttempt(buggyDir, workspaceDir, 'Fix the injected bug');
+      const prompt = SystemPrompts.formatPrompt(SystemPrompts.FIX_ATTEMPT);
+      return provider.fixAttempt(buggyDir, workspaceDir, prompt);
     } catch (error) {
       return {
         success: false,
