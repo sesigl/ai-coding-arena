@@ -67,7 +67,7 @@ describe('CLI', () => {
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '💥 Unexpected error:',
-        'Unknown provider: unknown-provider. Available providers: mock-provider, claude-code'
+        'Unknown provider: unknown-provider. Available providers: mock-provider, claude-code, gemini-cli'
       );
 
       mockExit.mockRestore();

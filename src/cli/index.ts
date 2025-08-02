@@ -8,6 +8,7 @@ config();
 import { GameRunner } from 'competition/game-runner';
 import { MockProvider } from 'providers/mock-provider/mock-provider';
 import { ClaudeCodeProvider } from 'providers/claude-code-provider/claude-code-provider';
+import { GeminiCliProvider } from 'providers/gemini-cli-provider/gemini-cli-provider';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { ParticipantId } from 'domain/competition-event/participant-id';
 import { WorkspaceService } from 'competition/services/workspace-service';
@@ -20,9 +21,12 @@ function createProvider(providerName: string): LLMProvider {
     case 'claude-code':
     case 'claude':
       return new ClaudeCodeProvider();
+    case 'gemini-cli':
+    case 'gemini':
+      return new GeminiCliProvider();
     default:
       throw new Error(
-        `Unknown provider: ${providerName}. Available providers: mock-provider, claude-code`
+        `Unknown provider: ${providerName}. Available providers: mock-provider, claude-code, gemini-cli`
       );
   }
 }
@@ -145,12 +149,22 @@ export async function main(): Promise<void> {
   if (providerNames.length < 3) {
     console.error('Usage: npm run cli [provider1] [provider2] [provider3] ... [--rounds=N]');
     console.error(
-      'Providers: mock-provider, claude-code (minimum 3 required for competitive gameplay)'
+      'Providers: mock-provider, claude-code, gemini-cli (minimum 3 required for competitive gameplay)'
     );
     console.error('Examples:');
     console.error('  npm run cli mock-provider mock-provider claude-code');
-    console.error('  npm run cli mock-provider claude-code mock-provider --rounds=5');
+    console.error('  npm run cli mock-provider claude-code gemini-cli --rounds=5');
+    console.error('  npm run cli gemini-cli claude-code mock-provider');
     process.exit(1);
+  }
+
+  // Warning for insufficient rounds for fair competition
+  if (rounds < providerNames.length) {
+    console.warn('⚠️  WARNING: Competition fairness compromised!');
+    console.warn(`   Rounds (${rounds}) < Participants (${providerNames.length})`);
+    console.warn(`   For fair competition, each participant should get equal opportunities.`);
+    console.warn(`   Recommended: --rounds=${providerNames.length} or higher`);
+    console.warn('   Continuing anyway...\n');
   }
 
   await runCompetition(providerNames, rounds);

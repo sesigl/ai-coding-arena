@@ -1,21 +1,21 @@
-// ABOUTME: Real integration tests with Claude Code CLI - disabled by default
-// Run with: npm run test:integration (requires real Claude Code CLI access)
+// ABOUTME: Real integration tests with Gemini CLI - disabled by default
+// Run with: npm run test:integration (requires real Gemini CLI access)
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { ClaudeCodeProvider } from './claude-code-provider';
+import { GeminiCliProvider } from './gemini-cli-provider';
 import { createWorkspace, cleanupWorkspace } from 'infrastructure/workspace/workspace';
 import { ValidationService } from 'competition/services/validation-service';
 import { DebugLogger } from 'utils/debug-logger';
 import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
 
-const INTEGRATION_TESTS_ENABLED = process.env.ENABLE_CLAUDE_INTEGRATION_TESTS === 'true';
+const INTEGRATION_TESTS_ENABLED = process.env.ENABLE_GEMINI_INTEGRATION_TESTS === 'true';
 
-describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration', () => {
-  let provider: ClaudeCodeProvider;
+describe.skipIf(!INTEGRATION_TESTS_ENABLED)('GeminiCliProvider Real Integration', () => {
+  let provider: GeminiCliProvider;
   let validationService: ValidationService;
 
   beforeEach(() => {
-    provider = new ClaudeCodeProvider();
+    provider = new GeminiCliProvider();
     validationService = new ValidationService();
   });
 
@@ -23,9 +23,9 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
     it('should run full baseline → bug injection → fix cycle successfully', async () => {
       DebugLogger.logPhaseStart('INTEGRATION_TEST', 'Running complete competition workflow');
 
-      const baselineDir = await createWorkspace('integration-baseline');
-      const buggyDir = await createWorkspace('integration-buggy');
-      const fixDir = await createWorkspace('integration-fix');
+      const baselineDir = await createWorkspace('integration-baseline-gemini');
+      const buggyDir = await createWorkspace('integration-buggy-gemini');
+      const fixDir = await createWorkspace('integration-fix-gemini');
 
       try {
         // PHASE 1: Create baseline project
@@ -81,7 +81,7 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
     it('should handle copy failures gracefully', async () => {
       const bugResult = await provider.injectBug(
         '/nonexistent/baseline',
-        '/tmp/test-bug-fail',
+        '/tmp/test-bug-fail-gemini',
         'Test prompt'
       );
       expect(bugResult.success).toBe(false);
@@ -89,7 +89,7 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
 
       const fixResult = await provider.fixAttempt(
         '/nonexistent/buggy',
-        '/tmp/test-fix-fail',
+        '/tmp/test-fix-fail-gemini',
         'Test prompt'
       );
       expect(fixResult.success).toBe(false);

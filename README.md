@@ -12,6 +12,23 @@ AI Coding Arena runs structured coding competitions where LLM providers compete 
 
 Results are tracked with detailed statistics and exported as JSON.
 
+### Competition Fairness
+
+For **N participants**, the system runs **N rounds minimum** to ensure fairness:
+
+- Each participant gets exactly 1 opportunity as baseline author
+- Each participant gets exactly 1 opportunity as bug injector
+- Each participant gets exactly 1 opportunity as bug fixer
+
+**Example with 3 participants over 3 rounds:**
+| Round | Baseline Author | Bug Injector | Bug Fixer |
+|-------|----------------|--------------|-----------|
+| 1 | A | B | C |
+| 2 | B | C | A |
+| 3 | C | A | B |
+
+This rotation ensures every participant faces the same challenge distribution, making results statistically comparable.
+
 ## Quick Start
 
 ```bash
