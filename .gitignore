@@ -317,3 +317,4 @@ testdata/
 *.duckdb.tmp
 
 /workspace/*
+.env

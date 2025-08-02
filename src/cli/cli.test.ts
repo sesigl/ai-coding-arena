@@ -3,28 +3,26 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { runCompetition } from './index';
-import { createWorkspace, cleanupWorkspace } from 'infrastructure/workspace/workspace';
+import { existsSync } from 'fs';
+import { tmpdir } from 'os';
 
 describe('CLI', () => {
-  let workspaceDir: string;
   let consoleSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(async () => {
-    workspaceDir = await createWorkspace('cli-test');
     consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
   });
 
   afterEach(async () => {
     consoleSpy.mockRestore();
-    await cleanupWorkspace(workspaceDir);
   });
 
   describe('runCompetition', () => {
     it('should run a complete competition workflow with default providers', async () => {
-      await expect(runCompetition(workspaceDir)).resolves.not.toThrow();
+      await expect(runCompetition()).resolves.not.toThrow();
 
       expect(consoleSpy).toHaveBeenCalledWith('🏁 Starting AI Coding Arena Competition...');
-      expect(consoleSpy).toHaveBeenCalledWith(`📁 Workspace: ${workspaceDir}`);
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/📁 Workspace: .*/));
       expect(consoleSpy).toHaveBeenCalledWith(
         '🤖 Providers: mock-provider, mock-provider, mock-provider'
       );
@@ -33,7 +31,7 @@ describe('CLI', () => {
 
     it('should run competition with specified providers', async () => {
       await expect(
-        runCompetition(workspaceDir, ['mock-provider', 'mock-provider', 'mock-provider'])
+        runCompetition(['mock-provider', 'mock-provider', 'mock-provider'])
       ).resolves.not.toThrow();
 
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -43,7 +41,7 @@ describe('CLI', () => {
     });
 
     it('should display progress messages during execution', async () => {
-      await runCompetition(workspaceDir);
+      await runCompetition();
 
       expect(consoleSpy).toHaveBeenCalledWith('🏁 Starting AI Coding Arena Competition...');
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/🔄 Round \d+ started/));
@@ -51,7 +49,7 @@ describe('CLI', () => {
     });
 
     it('should display competition results', async () => {
-      await runCompetition(workspaceDir);
+      await runCompetition();
 
       expect(consoleSpy).toHaveBeenCalledWith('\n🏆 Final Results:');
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/\{[\s\S]*\}/)); // JSON output
@@ -62,7 +60,7 @@ describe('CLI', () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       try {
-        await runCompetition(workspaceDir, ['unknown-provider', 'mock-provider', 'mock-provider']);
+        await runCompetition(['unknown-provider', 'mock-provider', 'mock-provider']);
       } catch {
         // Expected error for unknown provider
       }
@@ -78,7 +76,7 @@ describe('CLI', () => {
 
     it('should run multi-participant competition with multiple providers', async () => {
       await expect(
-        runCompetition(workspaceDir, ['mock-provider', 'mock-provider', 'mock-provider'])
+        runCompetition(['mock-provider', 'mock-provider', 'mock-provider'])
       ).resolves.not.toThrow();
 
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -86,6 +84,76 @@ describe('CLI', () => {
       );
       expect(consoleSpy).toHaveBeenCalledWith('🔄 Rounds: 3');
       expect(consoleSpy).toHaveBeenCalledWith('\n🏆 Final Results:');
+    });
+  });
+
+  describe('workspace cleanup', () => {
+    it('should clean up temporary workspace directory after competition completes', async () => {
+      let workspacePath: string | null = null;
+
+      // Capture the workspace path from console output
+      const originalConsoleLog = console.log;
+      console.log = vi.fn((message: string, ...args: unknown[]) => {
+        if (typeof message === 'string' && message.includes('📁 Workspace:')) {
+          workspacePath = message.replace('📁 Workspace: ', '');
+        }
+        originalConsoleLog(message, ...args);
+      });
+
+      try {
+        await runCompetition(['mock-provider', 'mock-provider', 'mock-provider']);
+
+        // Verify workspace path was captured and is in temp directory
+        expect(workspacePath).toBeTruthy();
+        expect(workspacePath).toContain(tmpdir());
+        expect(workspacePath).toContain('ai-coding-arena-competition');
+
+        // Verify the workspace directory was cleaned up
+        expect(workspacePath).not.toBeNull();
+        if (workspacePath) {
+          expect(existsSync(workspacePath)).toBe(false);
+        }
+      } finally {
+        console.log = originalConsoleLog;
+      }
+    });
+
+    it('should clean up workspace directory even when competition fails', async () => {
+      let workspacePath: string | null = null;
+
+      // Capture the workspace path from console output
+      const originalConsoleLog = console.log;
+      console.log = vi.fn((message: string, ...args: unknown[]) => {
+        if (typeof message === 'string' && message.includes('📁 Workspace:')) {
+          workspacePath = message.replace('📁 Workspace: ', '');
+        }
+        originalConsoleLog(message, ...args);
+      });
+
+      // Mock process.exit to prevent actual exit
+      const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      try {
+        await runCompetition(['unknown-provider', 'mock-provider', 'mock-provider']);
+      } catch {
+        // Expected error for unknown provider
+      }
+
+      try {
+        // Verify workspace path was captured
+        if (workspacePath) {
+          expect(workspacePath).toContain(tmpdir());
+          expect(workspacePath).toContain('ai-coding-arena-competition');
+
+          // Verify the workspace directory was cleaned up even after error
+          expect(existsSync(workspacePath)).toBe(false);
+        }
+      } finally {
+        console.log = originalConsoleLog;
+        mockExit.mockRestore();
+        consoleErrorSpy.mockRestore();
+      }
     });
   });
 });

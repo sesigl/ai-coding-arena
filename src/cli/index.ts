@@ -2,11 +2,15 @@
 // Minimal implementation with basic error handling and progress reporting
 /* eslint-disable no-console */
 
+import { config } from 'dotenv';
+config();
+
 import { GameRunner } from 'competition/game-runner';
 import { MockProvider } from 'providers/mock-provider/mock-provider';
 import { ClaudeCodeProvider } from 'providers/claude-code-provider/claude-code-provider';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { ParticipantId } from 'domain/competition-event/participant-id';
+import { WorkspaceService } from 'competition/services/workspace-service';
 
 function createProvider(providerName: string): LLMProvider {
   switch (providerName) {
@@ -24,12 +28,10 @@ function createProvider(providerName: string): LLMProvider {
 }
 
 export async function runCompetition(
-  workspaceDir: string,
   providerNames: string[] = ['mock-provider', 'mock-provider', 'mock-provider'],
   rounds: number = 3
 ): Promise<void> {
   console.log('🏁 Starting AI Coding Arena Competition...');
-  console.log(`📁 Workspace: ${workspaceDir}`);
   console.log(`🤖 Providers: ${providerNames.join(', ')}`);
   console.log(`🔄 Rounds: ${rounds}`);
 
@@ -40,18 +42,29 @@ export async function runCompetition(
     process.exit(1);
   }
 
-  try {
-    const providers = providerNames.map(name => createProvider(name));
-    const participantMap = createParticipantMap(providers);
-    const runner = new GameRunner(participantMap, workspaceDir);
+  const workspaceService = new WorkspaceService();
 
-    setupEventLogging(runner);
-    const finalSummary = await runner.start(rounds);
+  const result = await workspaceService.withWorkspace(
+    'competition',
+    async (workspaceDir: string) => {
+      console.log(`📁 Workspace: ${workspaceDir}`);
 
-    console.log('\n🏆 Final Results:');
-    console.log(JSON.stringify(finalSummary, null, 2));
-  } catch (error) {
-    console.error('💥 Unexpected error:', error instanceof Error ? error.message : String(error));
+      const providers = providerNames.map(name => createProvider(name));
+      const participantMap = createParticipantMap(providers);
+      const runner = new GameRunner(participantMap, workspaceDir);
+
+      setupEventLogging(runner);
+      const finalSummary = await runner.start(rounds);
+
+      console.log('\n🏆 Final Results:');
+      console.log(JSON.stringify(finalSummary, null, 2));
+
+      return finalSummary;
+    }
+  );
+
+  if (result.isErr()) {
+    console.error('💥 Unexpected error:', result.error.message);
     process.exit(1);
   }
 }
@@ -112,27 +125,11 @@ function setupEventLogging(runner: GameRunner): void {
 export async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
-  if (args.length < 1) {
-    console.error(
-      'Usage: npm run cli <workspace-dir> [provider1] [provider2] [provider3] ... [--rounds=N]'
-    );
-    console.error(
-      'Providers: mock-provider, claude-code (minimum 3 required for competitive gameplay)'
-    );
-    console.error('Examples:');
-    console.error('  npm run cli ./my-workspace mock-provider mock-provider claude-code');
-    console.error(
-      '  npm run cli ./my-workspace mock-provider claude-code mock-provider --rounds=5'
-    );
-    process.exit(1);
-  }
-
-  const workspaceDir = args[0] as string;
   let providerNames: string[] = [];
   let rounds = 3;
 
   // Parse arguments for providers and rounds
-  for (let i = 1; i < args.length; i++) {
+  for (let i = 0; i < args.length; i++) {
     const arg = args[i] as string;
     if (arg.startsWith('--rounds=')) {
       rounds = parseInt(arg.split('=')[1] as string, 10) || 3;
@@ -145,7 +142,18 @@ export async function main(): Promise<void> {
     providerNames = ['mock-provider', 'mock-provider', 'mock-provider']; // Default to 3 mock providers
   }
 
-  await runCompetition(workspaceDir, providerNames, rounds);
+  if (providerNames.length < 3) {
+    console.error('Usage: npm run cli [provider1] [provider2] [provider3] ... [--rounds=N]');
+    console.error(
+      'Providers: mock-provider, claude-code (minimum 3 required for competitive gameplay)'
+    );
+    console.error('Examples:');
+    console.error('  npm run cli mock-provider mock-provider claude-code');
+    console.error('  npm run cli mock-provider claude-code mock-provider --rounds=5');
+    process.exit(1);
+  }
+
+  await runCompetition(providerNames, rounds);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
