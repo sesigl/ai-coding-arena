@@ -45,6 +45,7 @@ function asStreamingToolMessage(msg: SDKMessage): {
 
 export class ClaudeCodeProvider implements LLMProvider {
   readonly name = 'claude-code';
+  private static readonly MAX_TURNS = 30;
 
   async createCodingExercise(
     workspaceDir: string,
@@ -131,7 +132,7 @@ export class ClaudeCodeProvider implements LLMProvider {
 
       DebugLogger.logProgress(phaseUpper, 'Starting Claude Code conversation', {
         workspaceDir,
-        maxTurns: 15,
+        maxTurns: ClaudeCodeProvider.MAX_TURNS,
         timeoutMs: timeoutInMs,
       });
 
@@ -141,7 +142,7 @@ export class ClaudeCodeProvider implements LLMProvider {
           prompt: `${prompt}\n\nIMPORTANT CONSTRAINTS:\n- You are working in a sandboxed workspace directory: ${workspaceDir}\n- You MUST stay within this directory - never access files outside of it\n- All file paths must be relative to the current working directory\n- Do not use absolute paths or .. to navigate outside the workspace\n- Only work with files that exist within the workspace directory`,
           abortController,
           options: {
-            maxTurns: 15, // Allow more turns for deep analysis
+            maxTurns: ClaudeCodeProvider.MAX_TURNS, // Allow more turns for deep analysis and complex baseline creation
             cwd: workspaceDir,
             allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'LS'],
             disallowedTools: ['Task', 'WebFetch', 'Bash'],
