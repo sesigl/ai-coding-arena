@@ -8,7 +8,7 @@ import { ParticipantId } from 'domain/competition-event/participant-id';
 import { EventType } from 'domain/competition-event/event-type';
 import { unlink, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
-import { TestEventFactory } from 'test/factory/test-event-factory';
+import { CompetitionEventFactory } from 'test/factory/competition-event-factory';
 import { TestAssertions } from 'test/assertions/test-assertions';
 
 describe('EventStore', () => {
@@ -41,7 +41,7 @@ describe('EventStore', () => {
 
   describe('insertEvent', () => {
     it('should insert a basic event successfully', async () => {
-      const event = TestEventFactory.createBasicEvent({
+      const event = CompetitionEventFactory.create({
         id: 'insert-test-1',
         competitionId: 'test-comp-1',
         participantId: 'claude-code',
@@ -52,7 +52,7 @@ describe('EventStore', () => {
     });
 
     it('should handle system events with explicit values', async () => {
-      const event = TestEventFactory.createBasicEvent({
+      const event = CompetitionEventFactory.create({
         id: 'system-test-2',
         competitionId: 'test-comp-2',
         roundId: 'NOT_APPLICABLE',
@@ -68,8 +68,8 @@ describe('EventStore', () => {
   describe('getEvents', () => {
     beforeEach(async () => {
       const events = [
-        TestEventFactory.createBasicEvent({ id: 'event-1', competitionId: 'comp-1' }),
-        TestEventFactory.createBasicEvent({ id: 'event-2', competitionId: 'comp-2' }),
+        CompetitionEventFactory.create({ id: 'event-1', competitionId: 'comp-1' }),
+        CompetitionEventFactory.create({ id: 'event-2', competitionId: 'comp-2' }),
       ];
 
       for (const event of events) {
@@ -91,9 +91,9 @@ describe('EventStore', () => {
   describe('getEventsByCompetition', () => {
     beforeEach(async () => {
       const events = [
-        TestEventFactory.createBasicEvent({ id: 'event-1', competitionId: 'comp-1' }),
-        TestEventFactory.createBasicEvent({ id: 'event-2', competitionId: 'comp-1' }),
-        TestEventFactory.createBasicEvent({ id: 'event-3', competitionId: 'comp-2' }),
+        CompetitionEventFactory.create({ id: 'event-1', competitionId: 'comp-1' }),
+        CompetitionEventFactory.create({ id: 'event-2', competitionId: 'comp-1' }),
+        CompetitionEventFactory.create({ id: 'event-3', competitionId: 'comp-2' }),
       ];
 
       for (const event of events) {
@@ -113,9 +113,9 @@ describe('EventStore', () => {
   describe('getEventsByParticipant', () => {
     beforeEach(async () => {
       const events = [
-        TestEventFactory.createBasicEvent({ id: 'event-1', participantId: 'claude-code' }),
-        TestEventFactory.createBasicEvent({ id: 'event-2', participantId: 'gemini-cli' }),
-        TestEventFactory.createBasicEvent({ id: 'event-3', participantId: 'claude-code' }),
+        CompetitionEventFactory.create({ id: 'event-1', participantId: 'claude-code' }),
+        CompetitionEventFactory.create({ id: 'event-2', participantId: 'gemini-cli' }),
+        CompetitionEventFactory.create({ id: 'event-3', participantId: 'claude-code' }),
       ];
 
       for (const event of events) {
@@ -135,15 +135,15 @@ describe('EventStore', () => {
   describe('getEventsByType', () => {
     beforeEach(async () => {
       const events = [
-        TestEventFactory.createBasicEvent({
+        CompetitionEventFactory.create({
           id: 'baseline-type-1',
           eventType: EventType.BASELINE_CREATION_STARTED,
         }),
-        TestEventFactory.createBasicEvent({
+        CompetitionEventFactory.create({
           id: 'baseline-type-2',
           eventType: EventType.BASELINE_CREATION_STARTED,
         }),
-        TestEventFactory.createBasicEvent({
+        CompetitionEventFactory.create({
           id: 'event-3',
           eventType: EventType.BUG_INJECTION_STARTED,
         }),
@@ -165,9 +165,9 @@ describe('EventStore', () => {
   describe('getEventCount', () => {
     beforeEach(async () => {
       const events = [
-        TestEventFactory.createBasicEvent({ id: 'event-1' }),
-        TestEventFactory.createBasicEvent({ id: 'event-2' }),
-        TestEventFactory.createBasicEvent({ id: 'event-3' }),
+        CompetitionEventFactory.create({ id: 'event-1' }),
+        CompetitionEventFactory.create({ id: 'event-2' }),
+        CompetitionEventFactory.create({ id: 'event-3' }),
       ];
 
       for (const event of events) {

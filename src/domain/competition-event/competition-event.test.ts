@@ -10,7 +10,12 @@ import { Phase } from './phase';
 describe('CompetitionEvent', () => {
   describe('when getting event properties', () => {
     it('should return all properties correctly', () => {
-      const event = CompetitionEventFactory.create();
+      const event = CompetitionEventFactory.create({
+        id: 'test-id-1',
+        competitionId: 'comp-1',
+        participantId: 'participant-1',
+        data: { key: 'value' },
+      });
 
       expect(event.getId().getValue()).toBe('test-id-1');
       expect(event.getTimestamp()).toEqual(new Date('2024-01-01'));
@@ -101,6 +106,7 @@ describe('CompetitionEvent', () => {
       const event = CompetitionEventFactory.create({
         id: 'test-event-99',
         competitionId: 'test-comp',
+        participantId: 'participant-1',
         success: false,
       });
 
