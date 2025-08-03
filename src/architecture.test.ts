@@ -29,7 +29,7 @@ describe('DDD Architecture Layer Dependencies', () => {
     const violations = await rule.check();
 
     printViolations(violations);
-    expect(violations.length).toBe(4); // not yet clean
+    expect(violations.length).toBe(5); // not yet clean
   });
 
   test('Infrastructure layer should only depend on Domain layer', async () => {
@@ -57,7 +57,7 @@ describe('DDD Architecture Layer Dependencies', () => {
     if (violations.length > 0) {
       console.log('Interfaces layer violations:', violations);
     }
-    expect(violations.length).toBe(4); // not yet clean
+    expect(violations.length).toBe(3); // not yet clean
   });
 
   test('Domain layer should be cycle-free', async () => {

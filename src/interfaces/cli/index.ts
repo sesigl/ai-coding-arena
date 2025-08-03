@@ -5,10 +5,7 @@
 import { config } from 'dotenv';
 config();
 
-import { GameRunner } from 'interfaces/cli/game-runner';
-import { LLMProvider } from 'domain/llm-provider/llm-provider';
-import { WorkspaceService } from 'application/workspace-service';
-import { StaticLLMProviderFactory } from 'infrastructure/llm-provider/static-llm-provider-factory';
+import { CompetitionService } from 'application/competition-service';
 
 export async function runCompetition(
   providerNames: string[] = ['mock-provider', 'mock-provider', 'mock-provider'],
@@ -25,51 +22,24 @@ export async function runCompetition(
     process.exit(1);
   }
 
-  const workspaceService = new WorkspaceService();
-
-  const result = await workspaceService.withWorkspace(
-    'competition',
-    async (workspaceDir: string) => {
-      console.log(`📁 Workspace: ${workspaceDir}`);
-
-      const providerFactory = new StaticLLMProviderFactory();
-      const providers = providerNames.map(name => {
-        const provider = providerFactory.getProviderByName(name);
-        if (!provider) {
-          throw new Error(`Provider not found: ${name}`);
-        }
-        return provider;
-      });
-      const participantMap = createParticipantMap(providers);
-      const runner = new GameRunner(participantMap, workspaceDir);
-
-      setupEventLogging(runner);
-      const finalSummary = await runner.start(rounds);
-
-      console.log('\n🏆 Final Results:');
-      console.log(JSON.stringify(finalSummary, null, 2));
-
-      return finalSummary;
-    }
+  const competitionService = new CompetitionService();
+  const result = await competitionService.runCompetition(
+    providerNames,
+    rounds,
+    setupEventLogging()
   );
 
   if (result.isErr()) {
     console.error('💥 Unexpected error:', result.error.message);
     process.exit(1);
   }
+
+  console.log('\n🏆 Final Results:');
+  console.log(JSON.stringify(result.value.finalSummary, null, 2));
 }
 
-function createParticipantMap(providers: LLMProvider[]): Map<string, string> {
-  const participantMap = new Map<string, string>();
-  providers.forEach((provider, index) => {
-    const participantName = `${provider.name}-${index + 1}`;
-    participantMap.set(participantName, provider.name);
-  });
-  return participantMap;
-}
-
-function setupEventLogging(runner: GameRunner): void {
-  runner.onEvent(event => {
+function setupEventLogging() {
+  return (event: { type: string; [key: string]: unknown }) => {
     switch (event.type) {
       case 'round-started': {
         console.log(`\n🔄 Round ${event.round} started - Baseline author: ${event.baselineAuthor}`);
@@ -109,7 +79,7 @@ function setupEventLogging(runner: GameRunner): void {
         break;
       }
     }
-  });
+  };
 }
 
 export async function main(): Promise<void> {
