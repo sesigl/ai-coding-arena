@@ -25,14 +25,14 @@ describe('GameRunner', () => {
     testWorkspaceDir = join(tmpdir(), `game-runner-test-${Date.now()}`);
     await mkdir(testWorkspaceDir, { recursive: true });
 
-    // Create provider configurations for different participants
-    const providers = new Map([
-      [participantA, new MockProvider()],
-      [participantB, new MockProvider()],
-      [participantC, new MockProvider()],
+    // Create participant-to-provider mapping
+    const participantProviders = new Map([
+      [participantA.getValue(), 'mock-provider'],
+      [participantB.getValue(), 'mock-provider'],
+      [participantC.getValue(), 'mock-provider'],
     ]);
 
-    gameRunner = new GameRunner(providers, testWorkspaceDir);
+    gameRunner = new GameRunner(participantProviders, testWorkspaceDir);
   });
 
   afterEach(async () => {
@@ -127,13 +127,13 @@ describe('GameRunner', () => {
         message: 'Baseline creation failed for testing',
       });
 
-      const providers = new Map([
-        [participantA, failingProvider],
-        [participantB, new MockProvider()],
-        [participantC, new MockProvider()],
+      const participantProviders = new Map([
+        [participantA.getValue(), 'failing-mock-provider'], // Use failing provider for baseline
+        [participantB.getValue(), 'mock-provider'],
+        [participantC.getValue(), 'mock-provider'],
       ]);
 
-      const failingGameRunner = new GameRunner(providers, testWorkspaceDir);
+      const failingGameRunner = new GameRunner(participantProviders, testWorkspaceDir);
       const events: GameEvent[] = [];
       failingGameRunner.onEvent(event => events.push(event));
 

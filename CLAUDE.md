@@ -43,6 +43,7 @@ When creating a new project structure, pick fun, unhinged names for components/m
 - **NEVER** use suffixes like 'Impl' or 'Interface' - use descriptive names that speak to purpose (e.g., `StaticLLMProviderFactory` not `LLMProviderFactoryImpl`)
 - Preserve existing comments unless provably false - they're documentation
 - **ALWAYS use absolute imports** - never use relative imports like `../utils/foo`. Use `src/utils/foo` instead
+- **Use lightweight dependency injection** - inject dependencies via constructor parameters with default instantiation (e.g., `private readonly llmProviderFactory: LLMProviderFactory = new StaticLLMProviderFactory()`) instead of heavy DI frameworks
 
 ---
 

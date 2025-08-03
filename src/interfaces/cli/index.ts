@@ -10,7 +10,6 @@ import { MockProvider } from 'infrastructure/coding-agent-providers/mock-provide
 import { ClaudeCodeProvider } from 'infrastructure/coding-agent-providers/claude-code-provider/claude-code-provider';
 import { GeminiCliProvider } from 'infrastructure/coding-agent-providers/gemini-cli-provider/gemini-cli-provider';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
-import { ParticipantId } from 'domain/competition-event/participant-id';
 import { WorkspaceService } from 'application/workspace-service';
 
 function createProvider(providerName: string): LLMProvider {
@@ -73,11 +72,11 @@ export async function runCompetition(
   }
 }
 
-function createParticipantMap(providers: LLMProvider[]): Map<ParticipantId, LLMProvider> {
-  const participantMap = new Map<ParticipantId, LLMProvider>();
+function createParticipantMap(providers: LLMProvider[]): Map<string, string> {
+  const participantMap = new Map<string, string>();
   providers.forEach((provider, index) => {
-    const participantId = ParticipantId.fromString(`${provider.name}-${index + 1}`);
-    participantMap.set(participantId, provider);
+    const participantName = `${provider.name}-${index + 1}`;
+    participantMap.set(participantName, provider.name);
   });
   return participantMap;
 }

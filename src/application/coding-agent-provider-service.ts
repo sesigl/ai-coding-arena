@@ -2,10 +2,11 @@
 // Enforces separation of concerns by handling validation and delegating actual provider work
 
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
-import { ParticipantId } from 'domain/competition-event/participant-id';
+import { LLMProviderFactory } from 'domain/llm-provider/llm-provider-factory';
 import { Duration } from 'domain/competition-event/duration';
 import { Result, ok, err } from 'neverthrow';
 import { setTimeout, clearTimeout } from 'timers';
+import { StaticLLMProviderFactory } from 'infrastructure/llm-provider/static-llm-provider-factory';
 
 export type ProviderCommand = 'baseline' | 'bug-injection' | 'fix-attempt';
 
@@ -32,20 +33,20 @@ export const DEFAULT_EXECUTION_CONFIG: ProviderExecutionConfig = {
 };
 
 export interface BaselineExecutionContext {
-  readonly participant: ParticipantId;
+  readonly providerName: string;
   readonly workspaceDir: string;
   readonly prompt: string;
 }
 
 export interface BugInjectionExecutionContext {
-  readonly participant: ParticipantId;
+  readonly providerName: string;
   readonly baselineDir: string;
   readonly workspaceDir: string;
   readonly prompt: string;
 }
 
 export interface FixAttemptExecutionContext {
-  readonly participant: ParticipantId;
+  readonly providerName: string;
   readonly buggyDir: string;
   readonly workspaceDir: string;
   readonly prompt: string;
@@ -53,12 +54,12 @@ export interface FixAttemptExecutionContext {
 
 export class CodingAgentProviderService {
   constructor(
-    private readonly providers: Map<ParticipantId, LLMProvider>,
+    private readonly llmProviderFactory: LLMProviderFactory = new StaticLLMProviderFactory(),
     private readonly config: ProviderExecutionConfig = DEFAULT_EXECUTION_CONFIG
   ) {}
 
   async executeBaseline(context: BaselineExecutionContext): Promise<ProviderExecutionResult> {
-    const provider = this.getProvider(context.participant);
+    const provider = this.getProvider(context.providerName);
 
     try {
       const result = await provider.createCodingExercise(context.workspaceDir, context.prompt);
@@ -74,7 +75,7 @@ export class CodingAgentProviderService {
   async executeBaselineWithTimeout(
     context: BaselineExecutionContext
   ): Promise<Result<TimedProviderExecutionResult, Error>> {
-    const provider = this.getProvider(context.participant);
+    const provider = this.getProvider(context.providerName);
     return this.executeWithTimeout(
       async () => provider.createCodingExercise(context.workspaceDir, context.prompt),
       this.config.baselineTimeoutMs,
@@ -85,7 +86,7 @@ export class CodingAgentProviderService {
   async executeBugInjection(
     context: BugInjectionExecutionContext
   ): Promise<ProviderExecutionResult> {
-    const provider = this.getProvider(context.participant);
+    const provider = this.getProvider(context.providerName);
 
     try {
       const result = await provider.injectBug(
@@ -105,7 +106,7 @@ export class CodingAgentProviderService {
   async executeBugInjectionWithTimeout(
     context: BugInjectionExecutionContext
   ): Promise<Result<TimedProviderExecutionResult, Error>> {
-    const provider = this.getProvider(context.participant);
+    const provider = this.getProvider(context.providerName);
     return this.executeWithTimeout(
       async () => provider.injectBug(context.baselineDir, context.workspaceDir, context.prompt),
       this.config.bugInjectionTimeoutMs,
@@ -114,7 +115,7 @@ export class CodingAgentProviderService {
   }
 
   async executeFixAttempt(context: FixAttemptExecutionContext): Promise<ProviderExecutionResult> {
-    const provider = this.getProvider(context.participant);
+    const provider = this.getProvider(context.providerName);
 
     try {
       const result = await provider.fixAttempt(
@@ -134,7 +135,7 @@ export class CodingAgentProviderService {
   async executeFixAttemptWithTimeout(
     context: FixAttemptExecutionContext
   ): Promise<Result<TimedProviderExecutionResult, Error>> {
-    const provider = this.getProvider(context.participant);
+    const provider = this.getProvider(context.providerName);
     return this.executeWithTimeout(
       async () => provider.fixAttempt(context.buggyDir, context.workspaceDir, context.prompt),
       this.config.fixAttemptTimeoutMs,
@@ -142,10 +143,10 @@ export class CodingAgentProviderService {
     );
   }
 
-  private getProvider(participant: ParticipantId): LLMProvider {
-    const provider = this.providers.get(participant);
+  private getProvider(providerName: string): LLMProvider {
+    const provider = this.llmProviderFactory.getProviderByName(providerName);
     if (!provider) {
-      throw new Error(`No provider found for participant ${participant.getValue()}`);
+      throw new Error(`No provider found with name: ${providerName}`);
     }
     return provider;
   }

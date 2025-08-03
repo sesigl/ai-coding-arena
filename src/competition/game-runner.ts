@@ -3,7 +3,6 @@
 
 import { Game } from './game/game';
 import { ParticipantId } from 'domain/competition-event/participant-id';
-import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
 import { CodingAgentProviderService } from '../application/coding-agent-provider-service';
 import { join } from 'path';
@@ -22,17 +21,21 @@ export interface GameEvent {
 
 export class GameRunner {
   private readonly game: Game;
+  private readonly participantProviders: Map<string, string>; // participant -> provider name
   private readonly participants: readonly ParticipantId[];
   private readonly providerExecutor: CodingAgentProviderService;
   private eventListeners: Array<(event: GameEvent) => void> = [];
 
   constructor(
-    providers: Map<ParticipantId, LLMProvider>,
+    participantProviders: Map<string, string>, // participant -> provider name
     private readonly workspaceBaseDir: string
   ) {
     this.game = new Game();
-    this.participants = Array.from(providers.keys());
-    this.providerExecutor = new CodingAgentProviderService(providers);
+    this.participantProviders = participantProviders;
+    this.participants = Array.from(participantProviders.keys()).map(p =>
+      ParticipantId.fromString(p)
+    );
+    this.providerExecutor = new CodingAgentProviderService();
   }
 
   onEvent(listener: (event: GameEvent) => void): void {
@@ -155,8 +158,13 @@ export class GameRunner {
       await this.validateWorkspaceIsEmpty(workspaceDir);
       await mkdir(workspaceDir, { recursive: true });
       const prompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
+      const providerName = this.participantProviders.get(participant.getValue());
+      if (!providerName) {
+        throw new Error(`No provider assigned to participant ${participant.getValue()}`);
+      }
+
       return this.providerExecutor.executeBaseline({
-        participant,
+        providerName,
         workspaceDir,
         prompt,
       });
@@ -187,8 +195,13 @@ export class GameRunner {
       await this.validateWorkspaceIsEmpty(workspaceDir);
       await mkdir(workspaceDir, { recursive: true });
       const prompt = SystemPrompts.formatPrompt(SystemPrompts.BUG_INJECTION);
+      const providerName = this.participantProviders.get(bugInjector.getValue());
+      if (!providerName) {
+        throw new Error(`No provider assigned to participant ${bugInjector.getValue()}`);
+      }
+
       return this.providerExecutor.executeBugInjection({
-        participant: bugInjector,
+        providerName,
         baselineDir,
         workspaceDir,
         prompt,
@@ -216,8 +229,13 @@ export class GameRunner {
       await this.validateWorkspaceIsEmpty(workspaceDir);
       await mkdir(workspaceDir, { recursive: true });
       const prompt = SystemPrompts.formatPrompt(SystemPrompts.FIX_ATTEMPT);
+      const providerName = this.participantProviders.get(fixer.getValue());
+      if (!providerName) {
+        throw new Error(`No provider assigned to participant ${fixer.getValue()}`);
+      }
+
       return this.providerExecutor.executeFixAttempt({
-        participant: fixer,
+        providerName,
         buggyDir,
         workspaceDir,
         prompt,

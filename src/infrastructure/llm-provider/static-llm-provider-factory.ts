@@ -6,12 +6,18 @@ import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { MockProvider } from 'infrastructure/coding-agent-providers/mock-provider/mock-provider';
 import { ClaudeCodeProvider } from 'infrastructure/coding-agent-providers/claude-code-provider/claude-code-provider';
 import { GeminiCliProvider } from 'infrastructure/coding-agent-providers/gemini-cli-provider/gemini-cli-provider';
+import { FailingMockProvider } from 'infrastructure/coding-agent-providers/failing-mock-provider/failing-mock-provider';
 
 export class StaticLLMProviderFactory implements LLMProviderFactory {
   private readonly providers: readonly LLMProvider[];
 
   constructor() {
-    this.providers = [new MockProvider(), new ClaudeCodeProvider(), new GeminiCliProvider()];
+    this.providers = [
+      new MockProvider(),
+      new ClaudeCodeProvider(),
+      new GeminiCliProvider(),
+      new FailingMockProvider(),
+    ];
   }
 
   getAvailableProviders(): readonly LLMProvider[] {
