@@ -10,7 +10,7 @@ import {
 } from '@anthropic-ai/claude-code';
 import { cp } from 'fs/promises';
 import { setTimeout as nodeSetTimeout, clearTimeout } from 'timers';
-import { DebugLogger } from 'utils/debug-logger';
+import { DebugLogger } from 'infrastructure/logging/debug-logger';
 
 // Type guards for discriminated unions
 function isUserOrAssistantMessage(msg: SDKMessage): msg is SDKUserMessage | SDKAssistantMessage {

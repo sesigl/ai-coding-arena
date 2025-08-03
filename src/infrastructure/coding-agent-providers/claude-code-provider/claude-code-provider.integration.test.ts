@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { ClaudeCodeProvider } from './claude-code-provider';
 import { createWorkspace, cleanupWorkspace } from 'infrastructure/workspace/workspace';
 import { ValidationService } from 'competition/services/validation-service';
-import { DebugLogger } from 'utils/debug-logger';
+import { DebugLogger } from 'infrastructure/logging/debug-logger';
 import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
 
 const INTEGRATION_TESTS_ENABLED = process.env.ENABLE_CLAUDE_INTEGRATION_TESTS === 'true';

@@ -5,7 +5,7 @@ import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { spawn } from 'child_process';
 import { cp } from 'fs/promises';
 import { setTimeout as nodeSetTimeout, clearTimeout } from 'timers';
-import { DebugLogger } from 'utils/debug-logger';
+import { DebugLogger } from 'infrastructure/logging/debug-logger';
 
 export class GeminiCliProvider implements LLMProvider {
   readonly name = 'gemini-cli';
