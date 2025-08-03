@@ -57,7 +57,7 @@ describe('DDD Architecture Layer Dependencies', () => {
     if (violations.length > 0) {
       console.log('Interfaces layer violations:', violations);
     }
-    expect(violations.length).toBe(3); // not yet clean
+    expect(violations.length).toBe(0);
   });
 
   test('Domain layer should be cycle-free', async () => {
