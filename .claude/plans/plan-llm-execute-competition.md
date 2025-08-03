@@ -457,7 +457,7 @@ Requirements (MINIMAL - only what's needed):
    - Handles basic errors gracefully
 2. Basic structure:
    ```typescript
-   // src/cli/index.ts
+   // src/infrastructure/cli/index.ts
    async function runCompetition(workspaceDir: string): Promise<void>;
    ```
 

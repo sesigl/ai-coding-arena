@@ -18,7 +18,7 @@
     "typecheck": "tsc --noEmit",
     "check:all": "npm run typecheck && npm run lint && npm run format:check && npm test",
     "fix:all": "npm run lint:fix && npm run format && npm test",
-    "cli": "tsx src/cli/index.ts",
+    "cli": "tsx src/infrastructure/cli/index.ts",
     "prepare": "husky"
   },
   "keywords": [
