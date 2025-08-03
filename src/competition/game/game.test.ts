@@ -2,10 +2,10 @@
 // Tests cover valid state transitions and fail-fast behavior for invalid operations
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Game } from './game/game';
-import { GameError } from './game/game-error';
+import { Game } from './game';
+import { GameError } from './game-error';
 import { ParticipantId } from 'domain/competition-event/participant-id';
-import { NextStepType } from './game/next-step';
+import { NextStepType } from './next-step';
 
 describe('Game', () => {
   let game: Game;

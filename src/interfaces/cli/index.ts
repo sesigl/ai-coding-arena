@@ -5,30 +5,10 @@
 import { config } from 'dotenv';
 config();
 
-import { GameRunner } from 'competition/game-runner';
-import { MockProvider } from 'infrastructure/coding-agent-providers/mock-provider/mock-provider';
-import { ClaudeCodeProvider } from 'infrastructure/coding-agent-providers/claude-code-provider/claude-code-provider';
-import { GeminiCliProvider } from 'infrastructure/coding-agent-providers/gemini-cli-provider/gemini-cli-provider';
+import { GameRunner } from 'interfaces/cli/game-runner';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { WorkspaceService } from 'application/workspace-service';
-
-function createProvider(providerName: string): LLMProvider {
-  switch (providerName) {
-    case 'mock-provider':
-    case 'mock':
-      return new MockProvider();
-    case 'claude-code':
-    case 'claude':
-      return new ClaudeCodeProvider();
-    case 'gemini-cli':
-    case 'gemini':
-      return new GeminiCliProvider();
-    default:
-      throw new Error(
-        `Unknown provider: ${providerName}. Available providers: mock-provider, claude-code, gemini-cli`
-      );
-  }
-}
+import { StaticLLMProviderFactory } from 'infrastructure/llm-provider/static-llm-provider-factory';
 
 export async function runCompetition(
   providerNames: string[] = ['mock-provider', 'mock-provider', 'mock-provider'],
@@ -52,7 +32,14 @@ export async function runCompetition(
     async (workspaceDir: string) => {
       console.log(`📁 Workspace: ${workspaceDir}`);
 
-      const providers = providerNames.map(name => createProvider(name));
+      const providerFactory = new StaticLLMProviderFactory();
+      const providers = providerNames.map(name => {
+        const provider = providerFactory.getProviderByName(name);
+        if (!provider) {
+          throw new Error(`Provider not found: ${name}`);
+        }
+        return provider;
+      });
       const participantMap = createParticipantMap(providers);
       const runner = new GameRunner(participantMap, workspaceDir);
 

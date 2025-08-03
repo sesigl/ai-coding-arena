@@ -1,10 +1,10 @@
 // ABOUTME: Game runner orchestrating competition flow with event emission and real provider interactions
 // Provides CLI-friendly API for running complete games with behavior-driven participant simulation
 
-import { Game } from './game/game';
+import { Game } from '../../competition/game/game';
 import { ParticipantId } from 'domain/competition-event/participant-id';
 import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
-import { CodingAgentProviderService } from '../application/coding-agent-provider-service';
+import { CodingAgentProviderService } from '../../application/coding-agent-provider-service';
 import { join } from 'path';
 import { mkdir, readdir, stat } from 'fs/promises';
 
