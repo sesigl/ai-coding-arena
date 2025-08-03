@@ -1,5 +1,10 @@
 # System Prompt for **Server-Generated, AWS-Only** TypeScript + Astro Product
 
+### Claude Code Agent Usage
+
+- Every code change is reviewed by the clean-code-enforcer agent before finalization.
+- **MANDATORY**: Always run `npm run fix:all` after completing any task to ensure nothing is broken.
+
 ### **All pages are built on the CI server, stored in S3, and served as static assets.**
 
 ### **DuckDB provides persistence and analytics, backing up parquet/csv files directly to the same S3 account.**
@@ -72,6 +77,63 @@ When creating a new project structure, pick fun, unhinged names for components/m
 ---
 
 ## 3 · Architecture & Design
+
+### **3.1 Domain-Driven Design (DDD) Layer Structure**
+
+The `/src` directory follows strict DDD layering with enforced dependency rules:
+
+| Layer              | Location              | Purpose & Rules                                                                                                                                    |
+| :----------------- | :-------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Domain**         | `src/domain/`         | Pure domain logic, entities, value objects, domain services. **NO** external dependencies. Contains interfaces that infrastructure must implement. |
+| **Application**    | `src/application/`    | Use cases, application services. **Glue layer** between domain and outside world. Orchestrates domain objects via repositories/factories.          |
+| **Infrastructure** | `src/infrastructure/` | Concrete implementations of domain interfaces (repositories, external APIs). Pure technical implementations that don't need domain interfaces.     |
+| **Interfaces**     | `src/interfaces/`     | Entry points from outside (CLI, web controllers). **MUST** call application services, never domain directly.                                       |
+
+### **3.2 DDD Flow Pattern**
+
+```typescript
+// 1. Interface layer receives external call
+// src/interfaces/cli/create-user-command.ts
+export class CreateUserCommand {
+  constructor(private createUserUseCase: CreateUserUseCase) {}
+
+  async execute(userData: UserData): Promise<void> {
+    // MUST call application service, never domain directly
+    await this.createUserUseCase.execute(userData);
+  }
+}
+
+// 2. Application service orchestrates domain
+// src/application/use-cases/create-user.ts
+export class CreateUserUseCase {
+  constructor(
+    private userRepository: UserRepository,    // domain interface
+    private userFactory: UserFactory          // domain interface
+  ) {}
+
+  async execute(userData: UserData): Promise<Result<User, AppError>> {
+    // Gets domain objects via repository/factory
+    const user = this.userFactory.create(userData);
+    return await this.userRepository.save(user);
+  }
+}
+
+// 3. Domain contains pure business logic
+// src/domain/entities/user.ts
+export class User {
+  // Pure domain logic, no external dependencies
+  validateEmail(): Result<void, ValidationError> { ... }
+}
+```
+
+### **3.3 Dependency Rules (Enforced by Tests)**
+
+- **Domain** → depends on **NOTHING** external
+- **Application** → depends on **Domain** only
+- **Infrastructure** → implements **Domain** interfaces, can depend on external libs
+- **Interfaces** → depends on **Application**, never **Domain** directly
+
+### **3.4 Technical Architecture**
 
 | Layer                     | Guideline                                                                                                                                                                                                                            |
 | :------------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -147,7 +209,41 @@ try {
 
 ---
 
-## 8 · Testing Matrix
+## 8 · Testing Matrix & Structure
+
+### **8.1 Test File Organization**
+
+- **Default location**: Tests are co-located next to source files in `/src/` (e.g., `src/utils/math.ts` → `src/utils/math.test.ts`)
+- **Pure test utilities**: Located in `./test/` directory for shared test infrastructure and factories
+- **Import paths**: Use absolute imports as defined in `tsconfig.json` paths mapping
+
+### **8.2 Import Statement Standards**
+
+Based on `tsconfig.json` path mapping, always use these absolute import patterns:
+
+```typescript
+// Domain layer
+import { User } from 'domain/entities/user';
+import { UserRepository } from 'domain/repositories/user-repository';
+
+// Infrastructure layer
+import { DatabaseConnection } from 'infrastructure/database/connection';
+import { S3Storage } from 'infrastructure/storage/s3-storage';
+
+// Application layer
+import { CreateUserUseCase } from 'application/use-cases/create-user';
+import { UserService } from 'application/services/user-service';
+
+// Interfaces layer
+import { UserController } from 'interfaces/controllers/user-controller';
+import { ApiRouter } from 'interfaces/routes/api-router';
+
+// Test utilities (from ./test/ directory)
+import { TestEventFactory } from 'test/factory/test-event-factory';
+import { MockDatabase } from 'test/mocks/mock-database';
+```
+
+### **8.3 Testing Tools by Layer**
 
 | Layer           | Tooling             | Key Scenarios                         |
 | :-------------- | :------------------ | :------------------------------------ |

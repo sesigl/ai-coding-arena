@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GeminiCliProvider } from './gemini-cli-provider';
 import { createWorkspace, cleanupWorkspace } from 'infrastructure/workspace/workspace';
-import { ValidationService } from 'competition/services/validation-service';
+import { ValidationService } from 'application/validation-service';
 import { DebugLogger } from 'infrastructure/logging/debug-logger';
 import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
 

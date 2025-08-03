@@ -5,7 +5,7 @@ import { Game } from './game/game';
 import { ParticipantId } from 'domain/competition-event/participant-id';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
-import { ProviderExecutor } from './provider-executor';
+import { CodingAgentProviderService } from '../application/coding-agent-provider-service';
 import { join } from 'path';
 import { mkdir, readdir, stat } from 'fs/promises';
 
@@ -23,7 +23,7 @@ export interface GameEvent {
 export class GameRunner {
   private readonly game: Game;
   private readonly participants: readonly ParticipantId[];
-  private readonly providerExecutor: ProviderExecutor;
+  private readonly providerExecutor: CodingAgentProviderService;
   private eventListeners: Array<(event: GameEvent) => void> = [];
 
   constructor(
@@ -32,7 +32,7 @@ export class GameRunner {
   ) {
     this.game = new Game();
     this.participants = Array.from(providers.keys());
-    this.providerExecutor = new ProviderExecutor(providers);
+    this.providerExecutor = new CodingAgentProviderService(providers);
   }
 
   onEvent(listener: (event: GameEvent) => void): void {

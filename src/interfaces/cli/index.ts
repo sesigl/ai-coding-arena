@@ -11,7 +11,7 @@ import { ClaudeCodeProvider } from 'infrastructure/coding-agent-providers/claude
 import { GeminiCliProvider } from 'infrastructure/coding-agent-providers/gemini-cli-provider/gemini-cli-provider';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { ParticipantId } from 'domain/competition-event/participant-id';
-import { WorkspaceService } from 'competition/services/workspace-service';
+import { WorkspaceService } from 'application/workspace-service';
 
 function createProvider(providerName: string): LLMProvider {
   switch (providerName) {

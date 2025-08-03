@@ -51,7 +51,7 @@ export interface FixAttemptExecutionContext {
   readonly prompt: string;
 }
 
-export class ProviderExecutor {
+export class CodingAgentProviderService {
   constructor(
     private readonly providers: Map<ParticipantId, LLMProvider>,
     private readonly config: ProviderExecutionConfig = DEFAULT_EXECUTION_CONFIG
