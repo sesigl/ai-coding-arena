@@ -15,7 +15,7 @@ import { Result, ok, err } from 'neverthrow';
 export class CompetitionEventService {
   constructor(
     private readonly eventStore: EventStore,
-    private readonly competitionId: CompetitionId
+    private readonly competitionId: string
   ) {}
 
   async logParticipantEvent(
@@ -29,7 +29,7 @@ export class CompetitionEventService {
     const event = new CompetitionEvent(
       this.generateEventId(),
       new Date(),
-      this.competitionId,
+      new CompetitionId(this.competitionId),
       RoundId.notApplicable(),
       participantId,
       eventType,
@@ -55,7 +55,7 @@ export class CompetitionEventService {
     const event = new CompetitionEvent(
       this.generateEventId(),
       new Date(),
-      this.competitionId,
+      new CompetitionId(this.competitionId),
       RoundId.notApplicable(),
       ParticipantId.system(),
       eventType,
