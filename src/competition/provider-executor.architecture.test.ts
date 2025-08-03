@@ -15,7 +15,7 @@ describe('Provider Architecture Rules', () => {
         '**/*.spec.ts',
         '**/provider-executor.ts', // The single centralized executor
         '**/llm-provider.ts', // Interface definition - contains method signatures
-        '**/providers/**/*.ts', // Provider implementations - they implement the interface
+        '**/infrastructure/coding-agent-providers/**/*.ts', // Provider implementations - they implement the interface
       ],
     });
 

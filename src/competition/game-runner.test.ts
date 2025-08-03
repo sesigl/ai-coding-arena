@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { GameRunner, GameEvent } from './game-runner';
 import { ParticipantId } from 'domain/competition-event/participant-id';
-import { MockProvider } from 'providers/mock-provider/mock-provider';
+import { MockProvider } from 'infrastructure/coding-agent-providers/mock-provider/mock-provider';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { mkdir, rm, writeFile } from 'fs/promises';

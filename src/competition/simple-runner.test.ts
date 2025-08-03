@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { SimpleCompetitionRunner } from './simple-runner';
 import { EventStore } from 'infrastructure/event-store/event-store';
-import { MockProvider } from 'providers/mock-provider/mock-provider';
+import { MockProvider } from 'infrastructure/coding-agent-providers/mock-provider/mock-provider';
 import { CompetitionId } from 'domain/competition-event/competition-id';
 import { ResultsFormatter } from 'results/formatter';
 import { existsSync } from 'fs';

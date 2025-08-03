@@ -6,9 +6,9 @@ import { config } from 'dotenv';
 config();
 
 import { GameRunner } from 'competition/game-runner';
-import { MockProvider } from 'providers/mock-provider/mock-provider';
-import { ClaudeCodeProvider } from 'providers/claude-code-provider/claude-code-provider';
-import { GeminiCliProvider } from 'providers/gemini-cli-provider/gemini-cli-provider';
+import { MockProvider } from 'infrastructure/coding-agent-providers/mock-provider/mock-provider';
+import { ClaudeCodeProvider } from 'infrastructure/coding-agent-providers/claude-code-provider/claude-code-provider';
+import { GeminiCliProvider } from 'infrastructure/coding-agent-providers/gemini-cli-provider/gemini-cli-provider';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { ParticipantId } from 'domain/competition-event/participant-id';
 import { WorkspaceService } from 'competition/services/workspace-service';
