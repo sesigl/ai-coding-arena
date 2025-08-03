@@ -40,6 +40,7 @@ When creating a new project structure, pick fun, unhinged names for components/m
 - Match existing code style and formatting for consistency within files
 - **NEVER** reimplement features from scratch without explicit permission
 - **NEVER** name things as 'improved', 'new', 'enhanced' - use evergreen naming
+- **NEVER** use suffixes like 'Impl' or 'Interface' - use descriptive names that speak to purpose (e.g., `StaticLLMProviderFactory` not `LLMProviderFactoryImpl`)
 - Preserve existing comments unless provably false - they're documentation
 - **ALWAYS use absolute imports** - never use relative imports like `../utils/foo`. Use `src/utils/foo` instead
 
