@@ -5,6 +5,7 @@ import { Game } from './game/game';
 import { ParticipantId } from 'domain/competition-event/participant-id';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
+import { ProviderExecutor } from './provider-executor';
 import { join } from 'path';
 import { mkdir, readdir, stat } from 'fs/promises';
 
@@ -22,14 +23,16 @@ export interface GameEvent {
 export class GameRunner {
   private readonly game: Game;
   private readonly participants: readonly ParticipantId[];
+  private readonly providerExecutor: ProviderExecutor;
   private eventListeners: Array<(event: GameEvent) => void> = [];
 
   constructor(
-    private readonly providers: Map<ParticipantId, LLMProvider>,
+    providers: Map<ParticipantId, LLMProvider>,
     private readonly workspaceBaseDir: string
   ) {
     this.game = new Game();
     this.participants = Array.from(providers.keys());
+    this.providerExecutor = new ProviderExecutor(providers);
   }
 
   onEvent(listener: (event: GameEvent) => void): void {
@@ -142,10 +145,6 @@ export class GameRunner {
   private async executeBaselineCreation(
     participant: ParticipantId
   ): Promise<{ success: boolean; message: string }> {
-    const provider = this.providers.get(participant);
-    if (!provider) {
-      throw new Error(`No provider found for participant ${participant.getValue()}`);
-    }
     const workspaceDir = this.getTaskWorkspace(
       participant,
       'baseline',
@@ -156,7 +155,11 @@ export class GameRunner {
       await this.validateWorkspaceIsEmpty(workspaceDir);
       await mkdir(workspaceDir, { recursive: true });
       const prompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
-      return provider.createCodingExercise(workspaceDir, prompt);
+      return this.providerExecutor.executeBaseline({
+        participant,
+        workspaceDir,
+        prompt,
+      });
     } catch (error) {
       return {
         success: false,
@@ -169,10 +172,6 @@ export class GameRunner {
     bugInjector: ParticipantId,
     baselineAuthor: ParticipantId
   ): Promise<{ success: boolean; message: string }> {
-    const provider = this.providers.get(bugInjector);
-    if (!provider) {
-      throw new Error(`No provider found for participant ${bugInjector.getValue()}`);
-    }
     const baselineDir = this.getTaskWorkspace(
       baselineAuthor,
       'baseline',
@@ -188,7 +187,12 @@ export class GameRunner {
       await this.validateWorkspaceIsEmpty(workspaceDir);
       await mkdir(workspaceDir, { recursive: true });
       const prompt = SystemPrompts.formatPrompt(SystemPrompts.BUG_INJECTION);
-      return provider.injectBug(baselineDir, workspaceDir, prompt);
+      return this.providerExecutor.executeBugInjection({
+        participant: bugInjector,
+        baselineDir,
+        workspaceDir,
+        prompt,
+      });
     } catch (error) {
       return {
         success: false,
@@ -201,10 +205,6 @@ export class GameRunner {
     fixer: ParticipantId,
     bugInjector: ParticipantId
   ): Promise<{ success: boolean; message: string }> {
-    const provider = this.providers.get(fixer);
-    if (!provider) {
-      throw new Error(`No provider found for participant ${fixer.getValue()}`);
-    }
     const buggyDir = this.getTaskWorkspace(
       bugInjector,
       'buginjection',
@@ -216,7 +216,12 @@ export class GameRunner {
       await this.validateWorkspaceIsEmpty(workspaceDir);
       await mkdir(workspaceDir, { recursive: true });
       const prompt = SystemPrompts.formatPrompt(SystemPrompts.FIX_ATTEMPT);
-      return provider.fixAttempt(buggyDir, workspaceDir, prompt);
+      return this.providerExecutor.executeFixAttempt({
+        participant: fixer,
+        buggyDir,
+        workspaceDir,
+        prompt,
+      });
     } catch (error) {
       return {
         success: false,

@@ -11,7 +11,7 @@ import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
 import { Result, ok, err } from 'neverthrow';
 
 import { WorkspaceService } from './services/workspace-service';
-import { ProviderExecutionService } from './services/provider-execution-service';
+import { ProviderExecutor } from './provider-executor';
 import { CompetitionEventService } from './services/competition-event-service';
 import { ValidationService } from './services/validation-service';
 
@@ -30,7 +30,6 @@ export interface MultiParticipantCompetitionResult {
 
 export class SimpleCompetitionRunner {
   private readonly workspaceService: WorkspaceService;
-  private readonly executionService: ProviderExecutionService;
   private readonly eventService: CompetitionEventService;
   private readonly validationService: ValidationService;
 
@@ -39,7 +38,6 @@ export class SimpleCompetitionRunner {
     private readonly competitionId: CompetitionId
   ) {
     this.workspaceService = new WorkspaceService();
-    this.executionService = new ProviderExecutionService();
     this.eventService = new CompetitionEventService(eventStore, competitionId);
     this.validationService = new ValidationService();
   }
@@ -59,11 +57,14 @@ export class SimpleCompetitionRunner {
       );
 
       const baselinePrompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
-      const executionResult = await this.executionService.executeBaselineCreation(
-        provider,
+      const participantProviders = new Map([[participantId, provider]]);
+      const executor = new ProviderExecutor(participantProviders);
+
+      const executionResult = await executor.executeBaselineWithTimeout({
+        participant: participantId,
         workspaceDir,
-        baselinePrompt
-      );
+        prompt: baselinePrompt,
+      });
 
       if (executionResult.isErr()) {
         await this.eventService.logError(
@@ -184,11 +185,14 @@ export class SimpleCompetitionRunner {
         );
 
         const baselinePrompt = SystemPrompts.formatPrompt(SystemPrompts.BASELINE_CREATION);
-        const baselineResult = await this.executionService.executeBaselineCreation(
-          provider,
-          baselineDir,
-          baselinePrompt
-        );
+        const baselineProviders = new Map([[participantId, provider]]);
+        const baselineExecutor = new ProviderExecutor(baselineProviders);
+
+        const baselineResult = await baselineExecutor.executeBaselineWithTimeout({
+          participant: participantId,
+          workspaceDir: baselineDir,
+          prompt: baselinePrompt,
+        });
 
         if (baselineResult.isErr()) {
           await this.eventService.logError(
@@ -241,12 +245,15 @@ export class SimpleCompetitionRunner {
         );
 
         const bugInjectionPrompt = SystemPrompts.formatPrompt(SystemPrompts.BUG_INJECTION);
-        const bugInjectionResult = await this.executionService.executeBugInjection(
-          provider,
+        const bugProviders = new Map([[participantId, provider]]);
+        const bugExecutor = new ProviderExecutor(bugProviders);
+
+        const bugInjectionResult = await bugExecutor.executeBugInjectionWithTimeout({
+          participant: participantId,
           baselineDir,
-          buggyDir,
-          bugInjectionPrompt
-        );
+          workspaceDir: buggyDir,
+          prompt: bugInjectionPrompt,
+        });
 
         if (bugInjectionResult.isErr()) {
           await this.eventService.logError(
@@ -299,12 +306,15 @@ export class SimpleCompetitionRunner {
         );
 
         const fixPrompt = SystemPrompts.formatPrompt(SystemPrompts.FIX_ATTEMPT);
-        const fixResult = await this.executionService.executeFixAttempt(
-          provider,
+        const fixProviders = new Map([[participantId, provider]]);
+        const fixExecutor = new ProviderExecutor(fixProviders);
+
+        const fixResult = await fixExecutor.executeFixAttemptWithTimeout({
+          participant: participantId,
           buggyDir,
-          fixDir,
-          fixPrompt
-        );
+          workspaceDir: fixDir,
+          prompt: fixPrompt,
+        });
 
         if (fixResult.isErr()) {
           await this.eventService.logError(
