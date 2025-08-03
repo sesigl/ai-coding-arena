@@ -11,7 +11,8 @@
       "domain/*": ["domain/*"],
       "infrastructure/*": ["infrastructure/*"],
       "application/*": ["application/*"],
-      "presentation/*": ["presentation/*"]
+      "presentation/*": ["presentation/*"],
+      "test/*": ["../test/*"]
     },
     "removeComments": true,
     "strict": true,
@@ -26,6 +27,6 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*", "*.config.ts"],
+  "include": ["src/**/*", "test/**/*", "*.config.ts"],
   "exclude": ["node_modules", "dist", "workspace"]
 }

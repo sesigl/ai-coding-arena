@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { CompetitionEvent } from './competition-event';
-import { CompetitionEventFactory } from 'test-utils/competition-event-factory';
+import { CompetitionEventFactory } from 'test/factory/competition-event-factory';
 import { EventType } from './event-type';
 import { Phase } from './phase';
 

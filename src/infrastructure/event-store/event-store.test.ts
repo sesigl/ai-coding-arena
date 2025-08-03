@@ -8,8 +8,8 @@ import { ParticipantId } from 'domain/competition-event/participant-id';
 import { EventType } from 'domain/competition-event/event-type';
 import { unlink, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
-import { TestEventFactory } from '../../test-utils/test-event-factory';
-import { TestAssertions } from '../../test-utils/test-assertions';
+import { TestEventFactory } from 'test/factory/test-event-factory';
+import { TestAssertions } from 'test/assertions/test-assertions';
 
 describe('EventStore', () => {
   let eventStore: EventStore;
