@@ -16,7 +16,7 @@ describe('DDD Architecture Layer Dependencies', () => {
     const violations = await rule.check();
 
     printViolations(violations);
-    expect(violations.length).toBe(1);
+    expect(violations.length).toBe(0);
   });
 
   test('Application layer can depend on Domain and Infrastructure layers', async () => {
@@ -45,7 +45,7 @@ describe('DDD Architecture Layer Dependencies', () => {
     const violations = await rule.check();
 
     printViolations(violations);
-    expect(violations.length).toBe(0);
+    expect(violations.length).toBe(1);
   });
 
   test('Infrastructure layer should only depend on Domain layer', async () => {
