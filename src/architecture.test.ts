@@ -33,7 +33,7 @@ describe('DDD Architecture Layer Dependencies', () => {
   });
 
   test('Infrastructure layer should only depend on Domain layer', async () => {
-    const rule = filesOfProject()
+    const rule = createRuleExcludingIntegrationTests()
       .inFolder('infrastructure')
       .shouldNot()
       .dependOnFiles()
@@ -42,7 +42,7 @@ describe('DDD Architecture Layer Dependencies', () => {
     const violations = await rule.check();
 
     printViolations(violations);
-    expect(violations.length).toBe(2); // not yet clean
+    expect(violations.length).toBe(0); // Clean after excluding integration tests
   });
 
   test('Interfaces layer should only depend on Application layer', async () => {
@@ -68,6 +68,10 @@ describe('DDD Architecture Layer Dependencies', () => {
     printViolations(violations);
     expect(violations.length).toBe(0);
   });
+
+  function createRuleExcludingIntegrationTests() {
+    return filesOfProject().matchingPattern('^(?!.*\\.integration\\.test\\.).*$');
+  }
 
   function printViolations(violations: Violation[]) {
     if (violations.length > 0) {
