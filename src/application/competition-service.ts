@@ -1,7 +1,7 @@
 // ABOUTME: Competition service for orchestrating complete competitions with provider resolution
 // Handles provider lookup, participant mapping, and competition execution coordination
 
-import { GameRunner } from 'competition/game/service/game-runner';
+import { GameRunner } from 'domain/competition/game/service/game-runner';
 import { WorkspaceService } from 'application/workspace-service';
 import { StaticLLMProviderFactory } from 'infrastructure/llm-provider/static-llm-provider-factory';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';

@@ -4,7 +4,7 @@
 import { Game } from '../game';
 import { ParticipantId } from 'domain/competition-event/participant-id';
 import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
-import { CodingAgentProviderService } from '../../../application/coding-agent-provider-service';
+import { CodingAgentProviderService } from 'application/coding-agent-provider-service';
 import { join } from 'path';
 import { mkdir, readdir, stat } from 'fs/promises';
 
