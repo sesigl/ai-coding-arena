@@ -2,7 +2,7 @@
 // Handles provider lookup, participant mapping, and competition execution coordination
 
 import { GameRunner } from 'domain/competition/game/service/game-runner';
-import { WorkspaceService } from 'application/workspace-service';
+import { WorkspaceService } from 'infrastructure/workspace/workspace-service';
 import { StaticLLMProviderFactory } from 'infrastructure/llm-provider/static-llm-provider-factory';
 import { LLMProvider } from 'domain/llm-provider/llm-provider';
 import { Result, err, ok } from 'neverthrow';

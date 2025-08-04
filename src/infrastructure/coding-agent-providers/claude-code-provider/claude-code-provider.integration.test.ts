@@ -3,7 +3,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ClaudeCodeProvider } from './claude-code-provider';
-import { createWorkspace, cleanupWorkspace } from 'infrastructure/workspace/workspace';
+import { WorkspaceService } from 'infrastructure/workspace/workspace-service';
 import { ValidationService } from 'application/validation-service';
 import { DebugLogger } from 'infrastructure/logging/debug-logger';
 import { SystemPrompts } from 'domain/competition-prompts/system-prompts';
@@ -23,9 +23,9 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
     it('should run full baseline → bug injection → fix cycle successfully', async () => {
       DebugLogger.logPhaseStart('INTEGRATION_TEST', 'Running complete competition workflow');
 
-      const baselineDir = await createWorkspace('integration-baseline');
-      const buggyDir = await createWorkspace('integration-buggy');
-      const fixDir = await createWorkspace('integration-fix');
+      const baselineDir = await WorkspaceService.createWorkspace('integration-baseline');
+      const buggyDir = await WorkspaceService.createWorkspace('integration-buggy');
+      const fixDir = await WorkspaceService.createWorkspace('integration-fix');
 
       try {
         // PHASE 1: Create baseline project
@@ -70,9 +70,9 @@ describe.skipIf(!INTEGRATION_TESTS_ENABLED)('ClaudeCodeProvider Real Integration
           'Complete competition workflow successful'
         );
       } finally {
-        await cleanupWorkspace(baselineDir);
-        await cleanupWorkspace(buggyDir);
-        await cleanupWorkspace(fixDir);
+        await WorkspaceService.cleanupWorkspace(baselineDir);
+        await WorkspaceService.cleanupWorkspace(buggyDir);
+        await WorkspaceService.cleanupWorkspace(fixDir);
       }
     }, 600000); // 10 minute timeout for complete workflow
   });

@@ -6,7 +6,7 @@ import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { MockProvider } from './mock-provider';
-import { cleanupWorkspace, createWorkspace } from 'infrastructure/workspace/workspace';
+import { WorkspaceService } from 'infrastructure/workspace/workspace-service';
 
 describe('MockProvider', () => {
   let mockProvider: MockProvider;
@@ -14,11 +14,11 @@ describe('MockProvider', () => {
 
   beforeEach(async () => {
     mockProvider = new MockProvider();
-    workspaceDir = await createWorkspace('mock-test');
+    workspaceDir = await WorkspaceService.createWorkspace('mock-test');
   });
 
   afterEach(async () => {
-    await cleanupWorkspace(workspaceDir);
+    await WorkspaceService.cleanupWorkspace(workspaceDir);
   });
 
   describe('interface compliance', () => {
@@ -75,16 +75,16 @@ describe('MockProvider', () => {
     let baselineDir: string;
 
     beforeEach(async () => {
-      baselineDir = await createWorkspace('baseline-test');
+      baselineDir = await WorkspaceService.createWorkspace('baseline-test');
       await mockProvider.createCodingExercise(baselineDir, 'Create a calculator project');
     });
 
     afterEach(async () => {
-      await cleanupWorkspace(baselineDir);
+      await WorkspaceService.cleanupWorkspace(baselineDir);
     });
 
     it('should inject bug and break tests', async () => {
-      const buggyDir = await createWorkspace('buggy-test');
+      const buggyDir = await WorkspaceService.createWorkspace('buggy-test');
 
       const result = await mockProvider.injectBug(
         baselineDir,
@@ -102,11 +102,11 @@ describe('MockProvider', () => {
       expect(content).toContain('Calculator');
       expect(content).toContain('return a - b');
 
-      await cleanupWorkspace(buggyDir);
+      await WorkspaceService.cleanupWorkspace(buggyDir);
     });
 
     it('should preserve project structure when injecting bug', async () => {
-      const buggyDir = await createWorkspace('structure-test');
+      const buggyDir = await WorkspaceService.createWorkspace('structure-test');
 
       await mockProvider.injectBug(baselineDir, buggyDir, 'Inject a bug into the calculator');
 
@@ -115,7 +115,7 @@ describe('MockProvider', () => {
       expect(existsSync(join(buggyDir, 'vitest.config.ts'))).toBe(true);
       expect(existsSync(join(buggyDir, 'calculator.test.ts'))).toBe(true);
 
-      await cleanupWorkspace(buggyDir);
+      await WorkspaceService.cleanupWorkspace(buggyDir);
     });
   });
 
@@ -124,20 +124,20 @@ describe('MockProvider', () => {
     let buggyDir: string;
 
     beforeEach(async () => {
-      baselineDir = await createWorkspace('baseline-test');
+      baselineDir = await WorkspaceService.createWorkspace('baseline-test');
       await mockProvider.createCodingExercise(baselineDir, 'Create a calculator project');
 
-      buggyDir = await createWorkspace('buggy-test');
+      buggyDir = await WorkspaceService.createWorkspace('buggy-test');
       await mockProvider.injectBug(baselineDir, buggyDir, 'Inject a bug into the calculator');
     });
 
     afterEach(async () => {
-      await cleanupWorkspace(baselineDir);
-      await cleanupWorkspace(buggyDir);
+      await WorkspaceService.cleanupWorkspace(baselineDir);
+      await WorkspaceService.cleanupWorkspace(buggyDir);
     });
 
     it('should fix bug and restore correct functionality', async () => {
-      const fixDir = await createWorkspace('fix-test');
+      const fixDir = await WorkspaceService.createWorkspace('fix-test');
 
       const result = await mockProvider.fixAttempt(
         buggyDir,
@@ -156,11 +156,11 @@ describe('MockProvider', () => {
       expect(content).toContain('return a + b;');
       expect(content).not.toContain('return a - b; // BUG: Should be addition');
 
-      await cleanupWorkspace(fixDir);
+      await WorkspaceService.cleanupWorkspace(fixDir);
     });
 
     it('should preserve project structure when fixing bug', async () => {
-      const fixDir = await createWorkspace('fix-structure-test');
+      const fixDir = await WorkspaceService.createWorkspace('fix-structure-test');
 
       await mockProvider.fixAttempt(buggyDir, fixDir, 'Fix the bug in the calculator');
 
@@ -169,7 +169,7 @@ describe('MockProvider', () => {
       expect(existsSync(join(fixDir, 'vitest.config.ts'))).toBe(true);
       expect(existsSync(join(fixDir, 'calculator.test.ts'))).toBe(true);
 
-      await cleanupWorkspace(fixDir);
+      await WorkspaceService.cleanupWorkspace(fixDir);
     });
   });
 });
@@ -179,44 +179,44 @@ describe('workspace utilities', () => {
 
   afterEach(async () => {
     if (workspaceDir) {
-      await cleanupWorkspace(workspaceDir);
+      await WorkspaceService.cleanupWorkspace(workspaceDir);
     }
   });
 
   describe('createWorkspace', () => {
     it('should create unique workspace directory', async () => {
-      workspaceDir = await createWorkspace('test');
+      workspaceDir = await WorkspaceService.createWorkspace('test');
 
       expect(existsSync(workspaceDir)).toBe(true);
       expect(workspaceDir).toContain('ai-coding-arena-test');
     });
 
     it('should create different directories for different names', async () => {
-      const workspace1 = await createWorkspace('test1');
-      const workspace2 = await createWorkspace('test2');
+      const workspace1 = await WorkspaceService.createWorkspace('test1');
+      const workspace2 = await WorkspaceService.createWorkspace('test2');
 
       expect(workspace1).not.toBe(workspace2);
       expect(existsSync(workspace1)).toBe(true);
       expect(existsSync(workspace2)).toBe(true);
 
-      await cleanupWorkspace(workspace1);
-      await cleanupWorkspace(workspace2);
+      await WorkspaceService.cleanupWorkspace(workspace1);
+      await WorkspaceService.cleanupWorkspace(workspace2);
     });
   });
 
   describe('cleanupWorkspace', () => {
     it('should remove workspace directory', async () => {
-      workspaceDir = await createWorkspace('cleanup-test');
+      workspaceDir = await WorkspaceService.createWorkspace('cleanup-test');
       expect(existsSync(workspaceDir)).toBe(true);
 
-      await cleanupWorkspace(workspaceDir);
+      await WorkspaceService.cleanupWorkspace(workspaceDir);
       expect(existsSync(workspaceDir)).toBe(false);
 
       workspaceDir = '';
     });
 
     it('should not throw error if directory does not exist', async () => {
-      await expect(cleanupWorkspace('/non/existent/path')).resolves.not.toThrow();
+      await expect(WorkspaceService.cleanupWorkspace('/non/existent/path')).resolves.not.toThrow();
     });
   });
 });

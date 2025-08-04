@@ -45,7 +45,7 @@ describe('DDD Architecture Layer Dependencies', () => {
     const violations = await rule.check();
 
     printViolations(violations);
-    expect(violations.length).toBe(1); // TODO: Fix competition-service -> workspace-service dependency
+    expect(violations.length).toBe(0);
   });
 
   test('Infrastructure layer should only depend on Domain layer', async () => {

@@ -1,7 +1,9 @@
-// ABOUTME: Workspace lifecycle service handling creation, cleanup and resource management
-// Encapsulates workspace operations with proper error handling and cleanup guarantees
+// ABOUTME: Workspace management service for creating, using and cleaning up isolated directories
+// Comprehensive workspace lifecycle management with proper error handling and cleanup guarantees
 
-import { createWorkspace, cleanupWorkspace } from 'infrastructure/workspace/workspace';
+import { mkdir, rm } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import { Result, ok, err } from 'neverthrow';
 
 export interface WorkspaceContext {
@@ -12,12 +14,12 @@ export interface WorkspaceContext {
 export class WorkspaceService {
   async createWorkspace(prefix: string): Promise<Result<WorkspaceContext, Error>> {
     try {
-      const workspaceDir = await createWorkspace(prefix);
+      const workspaceDir = await this.createWorkspaceDirectory(prefix);
 
       const context: WorkspaceContext = {
         workspaceDir,
         cleanup: async () => {
-          await cleanupWorkspace(workspaceDir);
+          await this.cleanupWorkspace(workspaceDir);
         },
       };
 
@@ -73,6 +75,34 @@ export class WorkspaceService {
     } finally {
       // Clean up all workspaces
       await Promise.all(workspaces.map(w => w.cleanup()));
+    }
+  }
+
+  private async createWorkspaceDirectory(name: string): Promise<string> {
+    const workspaceDir = join(tmpdir(), `ai-coding-arena-${name}-${Date.now()}`);
+    await mkdir(workspaceDir, { recursive: true });
+    return workspaceDir;
+  }
+
+  private async cleanupWorkspace(dir: string): Promise<void> {
+    try {
+      await rm(dir, { recursive: true, force: true });
+    } catch {
+      // Workspace might already be gone
+    }
+  }
+
+  static async createWorkspace(name: string): Promise<string> {
+    const workspaceDir = join(tmpdir(), `ai-coding-arena-${name}-${Date.now()}`);
+    await mkdir(workspaceDir, { recursive: true });
+    return workspaceDir;
+  }
+
+  static async cleanupWorkspace(dir: string): Promise<void> {
+    try {
+      await rm(dir, { recursive: true, force: true });
+    } catch {
+      // Workspace might already be gone
     }
   }
 }
